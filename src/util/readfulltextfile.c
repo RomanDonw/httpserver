@@ -2,7 +2,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdbool.h>
 #include <string.h>
 
 char *readfulltextfile(const char *filename)
@@ -17,19 +16,13 @@ char *readfulltextfile(const char *filename)
 
     char buffer[BUFFER_SIZE];
 
-    while (true)
+    size_t readblocks;
+    while (readblocks = fread(buffer, sizeof(char), BUFFER_SIZE, f))
     {
-        size_t readblocks = fread(buffer, sizeof(char), BUFFER_SIZE, f);
-        if (!readblocks) break;
-
+        // allocate memory
         {
             char *new_ret = realloc(ret, size + readblocks * sizeof(char));
-            if (!new_ret)
-            {
-                if (ret) free(ret);
-                fclose(f);
-                return NULL;
-            }
+            if (!new_ret) goto errorquit;
             ret = new_ret;
         }
 
@@ -38,14 +31,10 @@ char *readfulltextfile(const char *filename)
         size += readblocks * sizeof(char);
     }
 
+    // expand buffer to add zero string terminator byte to end of buffer.
     {
-        char *new_ret = realloc(ret, size + 1);
-        if (!new_ret)
-        {
-            if (ret) free(ret);
-            fclose(f);
-            return NULL;
-        }
+        char *new_ret = realloc(ret, size + sizeof(char));
+        if (!new_ret) goto errorquit;
         ret = new_ret;
     }
 
@@ -53,4 +42,9 @@ char *readfulltextfile(const char *filename)
 
     fclose(f);
     return ret;
+
+    errorquit:
+        if (ret) free(ret);
+        fclose(f);
+    return NULL;
 }
