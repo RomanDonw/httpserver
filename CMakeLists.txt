@@ -3,7 +3,7 @@ project(httpserver LANGUAGES C)
 
 option(BUILD_SHARED_LIBS "Build shared libraries" OFF)
 
-set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD 99)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)
 

@@ -1,46 +1,29 @@
 #include <getopt.h>
 #include <stdio.h>
+#include <libsocket.h>
 #include <stdlib.h>
-#include <stdbool.h>
-#include <string.h>
-
-#include "util/readfulltextfile.h"
-
-char *readfile(const char *filename);
 
 int main(int argc, char **argv)
 {
-    char *configfname = NULL;
+    IPv4Address addr = IPV4ADDR_LOOPBACK;
+    unsigned short port = 80;
     
     {
         int p;
-        while ((p = getopt(argc, argv, "c:")) != -1)
+        while ((p = getopt(argc, argv, "a:p:")) != -1)
         {
             switch (p)
             {
-                case 'c':
-                    configfname = optarg;
+                case 'p':
+                    if (sscanf(optarg, "%hd", &port) < 1)
+                    {
+                        fputs("Error parsing -p parameter value.", stderr);
+                        exit(EXIT_FAILURE);
+                    }
                     break;
             }
         }
     }
-
-    if (!configfname)
-    {
-        puts("Missed required parameter \"-c\" - config .json file path.");
-        return 1;
-    }
-
-    char *configcontent = readfulltextfile(configfname);
-    if (!configcontent)
-    {
-        printf("Can't open file \"%s\".\n", configfname);
-        return 1;
-    }
-
-    puts(configcontent);
-
-    free(configcontent);
 
     return 0;
 }
