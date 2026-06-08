@@ -1,23 +1,29 @@
 cmake_minimum_required(VERSION 3.23)
-project(httpserver)
+project(httpserver LANGUAGES C)
 
-set(BUILD_SHARED_LIBS OFF)
+option(BUILD_SHARED_LIBS "Build shared libraries" OFF)
+
+set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD_REQUIRED ON)
+set(CMAKE_C_EXTENSIONS OFF)
+
+include(GNUInstallDirs)
 
 file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS "src/*.h" "src/*.c")
+add_executable(${PROJECT_NAME} ${SOURCES})
+unset(SOURCES)
 
-add_executable(httpserver ${SOURCES})
-
-target_link_options(httpserver PRIVATE
-    "-static-libgcc"
-    "-Wl,-Bstatic,--whole-archive"
-    "-lwinpthread"
-    "-Wl,--no-whole-archive"
-    "-O2"
-)
+#target_link_options(${PROJECT_NAME} PRIVATE
+#    "-static-libgcc"
+#    "-Wl,-Bstatic,--whole-archive"
+#    "-lwinpthread"
+#    "-Wl,--no-whole-archive"
+#    "-O2"
+#)
 
 find_package(PkgConfig REQUIRED)
 set(PKG_CONFIG_USE_CMAKE_PREFIX_PATH ON)
 set(ENV{PKG_CONFIG} "pkg-config --static")
 
-find_package(json-c REQUIRED)
-target_link_libraries(httpserver PRIVATE json-c::json-c)
+find_package(libsocket REQUIRED)
+target_link_libraries(${PROJECT_NAME} PRIVATE libsocket::socket)

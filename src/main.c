@@ -1,7 +1,6 @@
 #include <getopt.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <json-c/json.h>
 #include <stdbool.h>
 #include <string.h>
 
