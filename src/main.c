@@ -24,6 +24,22 @@ double gettimesec(void)
 
 void recvallwithtimeout(const Socket *socket, double seconds, char **readdata, size_t *readbytes);
 
+void sendHTTPshortresp(const Socket *socket, unsigned short code, const char *description)
+{
+    #define FORMATSTR(out_str, size) (snprintf(out_str, size, "HTTP/1.0 %hu %s\r\n\r\n", code, description))
+
+    int strsz = FORMATSTR(NULL, 0);
+    if (strsz <= 0) return;
+
+    char *str = malloc_s(strsz);
+    FORMATSTR(str, strsz);
+
+    socket_send(socket, str, strsz, NULL, SOCKET_SEND_NOFLAGS);
+
+    free(str);
+    #undef FORMATSTR
+}
+
 bool working = true;
 
 void handlesig(int sig)
@@ -51,6 +67,9 @@ int main(int argc, char **argv)
     }
 
     // =============================================================================
+
+    const char http400msg[] = "Bad request";
+    const char http505msg[] = "Method not allowed";
 
     SocketError err;
     IPv4Address addr = IPV4ADDR_LOOPBACK;
@@ -125,28 +144,60 @@ int main(int argc, char **argv)
 
         puts(data);
 
-        /*
-        char *methodend = strchr(data, ' ');
-        if (!methodend) { puts("Error parsing HTTP request method."); goto closecl; }
+        #if 0
 
-        size_t methodlen = methodend - data;
+        char *methodstr = NULL;
+        size_t methodlen = 0;
+        
+        char *_tempptr = strchr(data, ' ');
+        if (_tempptr)
+        {
+            methodlen = _tempptr - data;
+            //printf("=== METHOD LEN: %zu\n", methodlen);
 
-        */
+            methodstr = malloc_s(methodlen + 1);
+            if (methodlen) memcpy(methodstr, data, methodlen);
+            methodstr[methodlen] = '\0';
+        }
+        else { sendHTTPshortresp(cl, 400, http400msg); goto closecl; }
+
+        //printf("=== METHOD: \"%s\"\n", methodstr);
+
+        if (strcmp(methodstr, "GET")) { sendHTTPshortresp(cl, 505, http505msg); goto closecl; }
+
+        char *urlstr = NULL;
+        size_t urllen = 0;
+        
+
+        char *tmp = strchr(tmp + sizeof(char) * 1, ' ');
+        if (tmp)
+        {
+            methodlen = tmp - data;
+            //printf("=== METHOD LEN: %zu\n", methodlen);
+
+            methodstr = malloc_s(methodlen + 1);
+            if (methodlen) memcpy(methodstr, data, methodlen);
+            methodstr[methodlen] = '\0';
+        }
+        else { sendHTTPshortresp(cl, 400, http400msg); goto closecl; }
+
+        free(methodstr);
+        #endif
 
         {
-            const char *page = "<h1>Example page</h1><hr>This is an example web page.<br><br>It works!";
-            size_t pagelen = strlen(page);
+            const char page[] = "<h1>Example page</h1><hr>This is an example web page.<br><br>It works!";
+            size_t pagelen = sizeof(page) - 1;
 
             #define FORMATSTR(out_str, size) (snprintf(out_str, size, "HTTP/1.0 200 OK\r\nContent-Type: text/html\r\nContent-Length: %zu\r\n\r\n%s\r\n", pagelen, page))
 
-            int responselen = FORMATSTR(NULL, 0);
-            if (responselen <= 0) { puts("snprintf formatting error."); return 1; }
+            int responsesz = FORMATSTR(NULL, 0);
+            if (responsesz <= 0) { puts("snprintf formatting error."); return 1; }
             
-            char *response = malloc_s(responselen);
-            FORMATSTR(response, responselen);
+            char *response = malloc_s(responsesz);
+            FORMATSTR(response, responsesz);
 
             puts(response);
-            socket_send(cl, response, responselen, NULL, SOCKET_SEND_NOFLAGS);
+            socket_send(cl, response, responsesz, NULL, SOCKET_SEND_NOFLAGS);
 
             free(response);
 
@@ -183,12 +234,14 @@ void recvallwithtimeout(const Socket *socket, double seconds, char **readdata, s
     size_t sz;
     while (gettimesec() < lastrecv + seconds)
     {
+        /*
         if ((err = socket_getreadablebytes(socket, &sz)) != SocketError_Success)
         {
             if (err == SocketError_WouldBlock) continue;
             herr_libsocket(err);
         }
         if (!sz) continue;
+        */
 
         if ((err = socket_recv(socket, buff, sizeof(buff), &sz, SOCKET_RECV_NOFLAGS)) != SocketError_Success)
         {
