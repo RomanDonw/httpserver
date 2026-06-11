@@ -24,20 +24,15 @@ double gettimesec(void)
 
 void recvallwithtimeout(const Socket *socket, double seconds, char **readdata, size_t *readbytes);
 
-void sendHTTPshortresp(const Socket *socket, unsigned short code, const char *description)
+struct HTTPHeader
 {
-    #define FORMATSTR(out_str, size) (snprintf(out_str, size, "HTTP/1.0 %hu %s\r\n\r\n", code, description))
+    char *name;
+    char *value;
+} typedef HTTPHeader;
 
-    int strsz = FORMATSTR(NULL, 0);
-    if (strsz <= 0) return;
-
-    char *str = malloc_s(strsz);
-    FORMATSTR(str, strsz);
-
-    socket_send(socket, str, strsz, NULL, SOCKET_SEND_NOFLAGS);
-
-    free(str);
-    #undef FORMATSTR
+void sendHTTPresponse(const Socket *socket, unsigned short statuscode, const HTTPHeader *headers, size_t headerscount, const void *body, size_t bodysize)
+{
+    
 }
 
 bool working = true;
@@ -191,7 +186,7 @@ int main(int argc, char **argv)
             #define FORMATSTR(out_str, size) (snprintf(out_str, size, "HTTP/1.0 200 OK\r\nContent-Type: text/html\r\nContent-Length: %zu\r\n\r\n%s\r\n", pagelen, page))
 
             int responsesz = FORMATSTR(NULL, 0);
-            if (responsesz <= 0) { puts("snprintf formatting error."); return 1; }
+            if (responsesz <= 0) { puts("snprintf formatting error."); goto closeconn; }
             
             char *response = malloc_s(responsesz);
             FORMATSTR(response, responsesz);
@@ -204,7 +199,7 @@ int main(int argc, char **argv)
             #undef FORMATSTR
         }
 
-        closecl:
+        closeconn:
         free(data);
 
         // =============================================================================

@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-const char *memallocerrorstr = "Memory (re)allocation failed. Application aborted.";
+static const char *memallocerrorstr = "Memory (re)allocation failed. Application aborted.";
 
 void *malloc_s(size_t size)
 {

@@ -13,6 +13,10 @@ file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS "src/*.h" "src/*.c")
 add_executable(${PROJECT_NAME} ${SOURCES})
 unset(SOURCES)
 
+if(WIN32)
+    target_compile_definitions(${PROJECT_NAME} PRIVATE OS_WINDOWS)
+endif()
+
 #target_link_options(${PROJECT_NAME} PRIVATE
 #    "-static-libgcc"
 #    "-Wl,-Bstatic,--whole-archive"
