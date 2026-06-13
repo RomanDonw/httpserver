@@ -6,8 +6,9 @@
 #include <time.h>
 #include <string.h>
 #include <signal.h>
+#include <libmonotime.h>
 
-#include "utils/safeallocs.h"
+#include "util.h"
 
 // herr_... - error handler prefix.
 void herr_libsocket(SocketError err) { fprintf(stderr, "libsocket error: %s.\n", socket_strerror(err)); exit(EXIT_FAILURE); }
@@ -15,25 +16,7 @@ void herr_parsearg(const char *pname) { fprintf(stderr, "Error parsing %s parame
 
 #define CHECKSOCKERR(err_var, code) { if ((err_var = (code)) != SocketError_Success) herr_libsocket(err_var); }
 
-double gettimesec(void)
-{
-    struct timespec ts;
-    timespec_get(&ts, TIME_MONOTONIC);
-    return (double)ts.tv_sec + ts.tv_nsec / (double)1000000000;
-}
-
-void recvallwithtimeout(const Socket *socket, double seconds, char **readdata, size_t *readbytes);
-
-struct HTTPHeader
-{
-    char *name;
-    char *value;
-} typedef HTTPHeader;
-
-void sendHTTPresponse(const Socket *socket, unsigned short statuscode, const HTTPHeader *headers, size_t headerscount, const void *body, size_t bodysize)
-{
-    
-}
+void recvallwithtimeout(const Socket *socket, monotime_t timeout, char **readdata, size_t *readbytes);
 
 bool working = true;
 
@@ -54,12 +37,7 @@ int main(int argc, char **argv)
     signal(SIGTERM, handlesig);
     signal(SIGINT, handlesig);
 
-    struct timespec ts;
-    if (!timespec_get(&ts, TIME_MONOTONIC))
-    {
-        fputs("This platform doesn't support monotonic time.", stderr);
-        return 1;
-    }
+    if (!monotime_now(NULL)) { fputs("This platform doesn't support monotonic time.", stderr); return 1; }
 
     // =============================================================================
 
@@ -135,7 +113,7 @@ int main(int argc, char **argv)
 
         // =============================================================================
 
-        recvallwithtimeout(cl, 0.05, &data, &sz);
+        recvallwithtimeout(cl, 50 * MONOTIME_MILLISECOND, &data, &sz);
 
         puts(data);
 
@@ -218,17 +196,22 @@ int main(int argc, char **argv)
     return 0;
 }
 
-void recvallwithtimeout(const Socket *socket, double seconds, char **readdata, size_t *readbytes)
+void recvallwithtimeout(const Socket *socket, monotime_t timeout, char **readdata, size_t *readbytes)
 {
     SocketError err;
     char *ret = NULL;
     size_t size = 0;
     char buff[512];
 
-    double lastrecv = gettimesec();
+    monotime_t lastrecv, currtime;
+    monotime_now_s(&lastrecv);
+    
     size_t sz;
-    while (gettimesec() < lastrecv + seconds)
+    while (true)
     {
+        monotime_now_s(&currtime);
+        if (currtime >= lastrecv + timeout) break;
+
         /*
         if ((err = socket_getreadablebytes(socket, &sz)) != SocketError_Success)
         {
@@ -249,7 +232,7 @@ void recvallwithtimeout(const Socket *socket, double seconds, char **readdata, s
         memcpy(ret + sizeof(char) * size, buff, sz);
         size += sz;
 
-        lastrecv = gettimesec();
+        monotime_now_s(&lastrecv);
     }
 
     ret = realloc_s(ret, size + 1);

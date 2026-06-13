@@ -31,3 +31,6 @@ set(ENV{PKG_CONFIG} "pkg-config --static")
 
 find_package(libsocket REQUIRED)
 target_link_libraries(${PROJECT_NAME} PRIVATE libsocket::socket)
+
+find_package(libmonotime REQUIRED)
+target_link_libraries(${PROJECT_NAME} PRIVATE libmonotime::monotime)
