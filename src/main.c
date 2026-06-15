@@ -18,7 +18,8 @@ void herr_parsearg(const char *pname) { fprintf(stderr, "Error parsing %s parame
 
 void recvallwithtimeout(const Socket *socket, monotime_t timeout, char **readdata, size_t *readbytes);
 
-bool working = true;
+// 'volatile' need to prevent 'ignoring' on optimization.
+volatile bool working = true;
 
 void handlesig(int sig)
 {
