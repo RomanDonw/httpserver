@@ -22,15 +22,22 @@ SocketError recvallwithtimeout(const Socket *socket, monotime_t timeout, void **
 
         if (!socket_isnonblocking(socket))
         {
-            if ((err = socket_getreadablebytes(socket, &availsz)) != SocketError_Success) return err;
+            if ((err = socket_getreadablebytes(socket, &availsz)) != SocketError_Success) goto errorquit;
             if (!availsz) continue;
         }
 
         if ((err = socket_recv(socket, buff, sizeof(buff), &availsz, SOCKET_RECV_NOFLAGS)) != SocketError_Success)
-        { if (err == SocketError_WouldBlock) continue; return err; }
-        if (!availsz) continue;
+        {
+            if (err == SocketError_WouldBlock) continue;
+            goto errorquit;
+        }
+        if (!availsz) { err = SocketError_ConnectionReset; goto errorquit; }
 
-        ret = realloc_s(ret, retsz + availsz);
+        {
+            void *new_ret = realloc(ret, retsz + availsz);
+            if (!new_ret) { err = SocketError_MemoryAllocationFailed; goto errorquit; }
+            ret = new_ret;
+        }
         memcpy(ret + retsz, buff, availsz);
         retsz += availsz;
 

@@ -16,8 +16,6 @@ void herr_parsearg(const char *pname) { fprintf(stderr, "Error parsing %s parame
 
 #define CHECKSOCKERR(err_var, code) { if ((err_var = (code)) != SocketError_Success) herr_libsocket(err_var); }
 
-void recvallwithtimeout(const Socket *socket, monotime_t timeout, char **readdata, size_t *readbytes);
-
 // 'volatile' need to prevent 'ignoring' on optimization.
 volatile bool working = true;
 
@@ -114,7 +112,11 @@ int main(int argc, char **argv)
 
         // =============================================================================
 
-        recvallwithtimeout(cl, 50 * MONOTIME_MILLISECOND, &data, &sz);
+        if ((err = recvallwithtimeout(cl, 50 * MONOTIME_MILLISECOND, (void **)&data, &sz)) != SocketError_Success)
+        {
+            // tmp code:
+            herr_libsocket(err);
+        }
 
         puts(data);
 

@@ -23,7 +23,10 @@ void *malloc_s(size_t size); // can`t return NULL.
 void *realloc_s(void *ptr, size_t size); // can`t return NULL.
 
 /*
-    Provides allocated block of memory with all readed data from socket taking into account the timeout.
+    Stores pointer to an allocated block of memory with all read data from socket taking into account the timeout.
+    'size' can be NULL.
+    can store *data = NULL & *size = 0 if no data read.
+    no changes *data & *size on error.
 */
 SocketError recvallwithtimeout(const Socket *socket, monotime_t timeout, void **data, size_t *size);
 
