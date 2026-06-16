@@ -4,6 +4,48 @@
 #include <stdarg.h>
 #include <string.h>
 
+SocketError recvallwithtimeout(const Socket *socket, monotime_t timeout, void **data, size_t *size)
+{
+    SocketError err;
+    char *ret = NULL;
+    size_t retsz = 0;
+
+    monotime_t lastrecv, currtime;
+    monotime_now_s(&lastrecv);
+    
+    char buff[512];
+    size_t availsz;
+    while (true)
+    {
+        monotime_now_s(&currtime);
+        if (currtime >= lastrecv + timeout) break;
+
+        if (!socket_isnonblocking(socket))
+        {
+            if ((err = socket_getreadablebytes(socket, &availsz)) != SocketError_Success) return err;
+            if (!availsz) continue;
+        }
+
+        if ((err = socket_recv(socket, buff, sizeof(buff), &availsz, SOCKET_RECV_NOFLAGS)) != SocketError_Success)
+        { if (err == SocketError_WouldBlock) continue; return err; }
+        if (!availsz) continue;
+
+        ret = realloc_s(ret, retsz + availsz);
+        memcpy(ret + retsz, buff, availsz);
+        retsz += availsz;
+
+        monotime_now_s(&lastrecv);
+    }
+
+    *data = ret;
+    if (size) *size = retsz;
+    return SocketError_Success;
+
+    errorquit:
+        if (ret) free(ret);
+    return err;
+}
+
 void __logerror(const char *filename, int line, const char *functionname, const char *format, ...)
 {
     va_list args;
@@ -45,7 +87,7 @@ char *readfulltextfile(const char *filename)
     char buffer[BUFFER_SIZE];
 
     size_t readblocks;
-    while (readblocks = fread(buffer, sizeof(char), BUFFER_SIZE, f))
+    while (readblocks = fread(buffer, sizeof(buffer), 1, f))
     {
         // allocate memory
         {

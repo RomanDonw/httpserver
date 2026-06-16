@@ -4,6 +4,7 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <libmonotime.h>
+#include <libsocket.h>
 
 #if defined(_MSC_VER) && (_MSC_VER < 1300)
     #define __func__ __FUNCTION__
@@ -20,6 +21,11 @@ void __logerror(const char *filename, int line, const char *functionname, const 
 
 void *malloc_s(size_t size); // can`t return NULL.
 void *realloc_s(void *ptr, size_t size); // can`t return NULL.
+
+/*
+    Provides allocated block of memory with all readed data from socket taking into account the timeout.
+*/
+SocketError recvallwithtimeout(const Socket *socket, monotime_t timeout, void **data, size_t *size);
 
 /*
     Returns an allocated block of memory (string) that contains read specified file content.
