@@ -48,7 +48,7 @@ int main(int argc, char **argv)
     char *addrstr = "127.0.0.1";
     unsigned short port = 80;
 
-    if ((err = libsocket_startup(NULL, NULL)) != SocketError_Success) herr_libsocket(err);
+    if ((err = libsocket_startup(NULL)) != SocketError_Success) herr_libsocket(err);
     
     {
         int p;
