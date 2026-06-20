@@ -158,6 +158,28 @@ int main(int argc, char **argv)
         free(methodstr);
         #endif
 
+        const char *methodstr = NULL;
+        const char *urlstr = NULL;
+        const char *versionstr = NULL;
+
+        {
+            char *tmp = strchr(data, ' ');
+            if (!tmp) { puts("Error parsing HTTP request method."); goto closeconn; }
+            *tmp = '\0';
+            methodstr = data;
+            
+            if (!(*(++tmp))) { puts("Reached end of request."); goto closeconn; }
+
+            urlstr = tmp;
+            tmp = strchr(tmp, ' ');
+            if (tmp) { puts("Error parsing HTTP request URL."); goto closeconn; }
+            
+            if (!(*(++tmp))) { puts("Reached end of request."); goto closeconn; }
+
+            tmp = strchr(tmp, '\r');
+            if (!tmp) 
+        }
+
         {
             const char page[] = "<h1>Example page</h1><hr>This is an example web page.<br><br>It works!";
             size_t pagelen = sizeof(page) - 1;

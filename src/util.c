@@ -45,7 +45,7 @@ char *readfulltextfile(const char *filename)
     char buffer[BUFFER_SIZE];
 
     size_t readblocks;
-    while (readblocks = fread(buffer, sizeof(char), BUFFER_SIZE, f))
+    while ((readblocks = fread(buffer, sizeof(char), BUFFER_SIZE, f)))
     {
         // allocate memory
         {
