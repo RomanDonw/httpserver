@@ -4,6 +4,55 @@
 #include <stdarg.h>
 #include <string.h>
 
+SocketError recvallwithtimeout(const Socket *socket, monotime_t timeout, void **data, size_t *size)
+{
+    SocketError err;
+    char *ret = NULL;
+    size_t retsz = 0;
+
+    monotime_t lastrecv, currtime;
+    monotime_now_s(&lastrecv);
+    
+    char buff[512];
+    size_t availsz;
+    while (true)
+    {
+        monotime_now_s(&currtime);
+        if (currtime >= lastrecv + timeout) break;
+
+        if (!socket_isnonblocking(socket))
+        {
+            if ((err = socket_getreadablebytes(socket, &availsz)) != SocketError_Success) goto errorquit;
+            if (!availsz) continue;
+        }
+
+        if ((err = socket_recv(socket, buff, sizeof(buff), &availsz, SOCKET_RECV_NOFLAGS)) != SocketError_Success)
+        {
+            if (err == SocketError_WouldBlock) continue;
+            goto errorquit;
+        }
+        if (!availsz) { err = SocketError_ConnectionReset; goto errorquit; }
+
+        {
+            void *new_ret = realloc(ret, retsz + availsz);
+            if (!new_ret) { err = SocketError_MemoryAllocationFailed; goto errorquit; }
+            ret = new_ret;
+        }
+        memcpy(ret + retsz, buff, availsz);
+        retsz += availsz;
+
+        monotime_now_s(&lastrecv);
+    }
+
+    *data = ret;
+    if (size) *size = retsz;
+    return SocketError_Success;
+
+    errorquit:
+        if (ret) free(ret);
+    return err;
+}
+
 void __logerror(const char *filename, int line, const char *functionname, const char *format, ...)
 {
     va_list args;
@@ -45,7 +94,9 @@ char *readfulltextfile(const char *filename)
     char buffer[BUFFER_SIZE];
 
     size_t readblocks;
+<<<<<<< HEAD
     while ((readblocks = fread(buffer, sizeof(char), BUFFER_SIZE, f)))
+>>>>>>> 939b0112c91cd26ef23d797bc28b08f6cbc85876
     {
         // allocate memory
         {

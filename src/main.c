@@ -16,8 +16,6 @@ void herr_parsearg(const char *pname) { fprintf(stderr, "Error parsing %s parame
 
 #define CHECKSOCKERR(err_var, code) { if ((err_var = (code)) != SocketError_Success) herr_libsocket(err_var); }
 
-void recvallwithtimeout(const Socket *socket, monotime_t timeout, char **readdata, size_t *readbytes);
-
 // 'volatile' need to prevent 'ignoring' on optimization.
 volatile bool working = true;
 
@@ -50,7 +48,7 @@ int main(int argc, char **argv)
     char *addrstr = "127.0.0.1";
     unsigned short port = 80;
 
-    if ((err = libsocket_startup(NULL, NULL)) != SocketError_Success) herr_libsocket(err);
+    if ((err = libsocket_startup(NULL)) != SocketError_Success) herr_libsocket(err);
     
     {
         int p;
@@ -114,7 +112,11 @@ int main(int argc, char **argv)
 
         // =============================================================================
 
-        recvallwithtimeout(cl, 50 * MONOTIME_MILLISECOND, &data, &sz);
+        if ((err = recvallwithtimeout(cl, 50 * MONOTIME_MILLISECOND, (void **)&data, &sz)) != SocketError_Success)
+        {
+            // tmp code:
+            herr_libsocket(err);
+        }
 
         puts(data);
 
@@ -184,7 +186,9 @@ int main(int argc, char **argv)
             const char page[] = "<h1>Example page</h1><hr>This is an example web page.<br><br>It works!";
             size_t pagelen = sizeof(page) - 1;
 
-            #define FORMATSTR(out_str, size) (snprintf(out_str, size, "HTTP/1.0 200 OK\r\nContent-Type: text/html\r\nContent-Length: %zu\r\n\r\n%s\r\n", pagelen, page))
+            #define FORMATSTR(out_str, size) (\
+                snprintf(out_str, size, "HTTP/1.0 200 OK\r\nContent-Type: text/html\r\nContent-Length: %zu\r\nConnection: close\r\n\r\n%s\r\n", pagelen, page)\
+            )
 
             int responsesz = FORMATSTR(NULL, 0);
             if (responsesz <= 0) { puts("snprintf formatting error."); goto closeconn; }
@@ -217,50 +221,4 @@ int main(int argc, char **argv)
     CHECKSOCKERR(err, libsocket_cleanup());
 
     return 0;
-}
-
-void recvallwithtimeout(const Socket *socket, monotime_t timeout, char **readdata, size_t *readbytes)
-{
-    SocketError err;
-    char *ret = NULL;
-    size_t size = 0;
-    char buff[512];
-
-    monotime_t lastrecv, currtime;
-    monotime_now_s(&lastrecv);
-    
-    size_t sz;
-    while (true)
-    {
-        monotime_now_s(&currtime);
-        if (currtime >= lastrecv + timeout) break;
-
-        /*
-        if ((err = socket_getreadablebytes(socket, &sz)) != SocketError_Success)
-        {
-            if (err == SocketError_WouldBlock) continue;
-            herr_libsocket(err);
-        }
-        if (!sz) continue;
-        */
-
-        if ((err = socket_recv(socket, buff, sizeof(buff), &sz, SOCKET_RECV_NOFLAGS)) != SocketError_Success)
-        {
-            if (err == SocketError_WouldBlock) continue;
-            herr_libsocket(err);
-        }
-        if (!sz) continue;
-
-        ret = realloc_s(ret, size + sz);
-        memcpy(ret + sizeof(char) * size, buff, sz);
-        size += sz;
-
-        monotime_now_s(&lastrecv);
-    }
-
-    ret = realloc_s(ret, size + 1);
-    ret[size] = '\0';
-
-    *readdata = ret;
-    if (readbytes) *readbytes = size + 1;
 }
