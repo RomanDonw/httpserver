@@ -164,7 +164,9 @@ int main(int argc, char **argv)
             const char page[] = "<h1>Example page</h1><hr>This is an example web page.<br><br>It works!";
             size_t pagelen = sizeof(page) - 1;
 
-            #define FORMATSTR(out_str, size) (snprintf(out_str, size, "HTTP/1.0 200 OK\r\nContent-Type: text/html\r\nContent-Length: %zu\r\n\r\n%s\r\n", pagelen, page))
+            #define FORMATSTR(out_str, size) (\
+                snprintf(out_str, size, "HTTP/1.0 200 OK\r\nContent-Type: text/html\r\nContent-Length: %zu\r\nConnection: close\r\n\r\n%s\r\n", pagelen, page)\
+            )
 
             int responsesz = FORMATSTR(NULL, 0);
             if (responsesz <= 0) { puts("snprintf formatting error."); goto closeconn; }
