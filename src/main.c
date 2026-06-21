@@ -107,10 +107,13 @@ int main(int argc, char **argv)
         if (saddrsz != sizeof(saddr)) { puts("Internal size mismatch."); return 1; }
 
         // unpack IP and port from SocketAddress structure.
-        CHECKSOCKERR(err, socket_unpacksockaddr(&saddr, SocketAddressFamily_IPv4, &addr, &port));
+        if ((err = socket_unpacksockaddr(&saddr, SocketAddressFamily_IPv4, &addr, &port)) != SocketError_Success)
+        { printf("Error unpacking socket address: %s.\n", socket_strerror(err)); goto closeconn; }
 
         // output client address to console.
-        CHECKSOCKERR(err, socket_addrtostr(&addr, SocketAddressFamily_IPv4, ip4str, sizeof(ip4str)));
+        if ((err = socket_addrtostr(&addr, SocketAddressFamily_IPv4, ip4str, sizeof(ip4str))) != SocketError_Success)
+        { printf("Error converting IPv4 binary representation to string equivalent: %s.\n", socket_strerror(err)); goto closeconn; }
+
         printf("Accepted client %s:%hu.\n", ip4str, port);
 
         // =============================================================================
