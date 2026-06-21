@@ -29,7 +29,30 @@ void *realloc_s(void *ptr, size_t size); // can`t return NULL.
     can store *data = NULL & *size = 0 if no data read.
     no changes *data & *size on error.
 */
-SocketError recvallwithtimeout(const Socket *socket, monotime_t timeout, void **data, size_t *size);
+
+enum recvallresulttype
+{
+    RECVALL_NOERROR,
+    RECVALL_SOCKETERROR,
+    RECVALL_OWNERROR
+} typedef recvallresulttype;
+
+enum recvallerror
+{
+    RECVALLERROR_MONOTIME
+} typedef recvallerror;
+
+struct recvallresult
+{
+    recvallresulttype type;
+    union
+    {
+        SocketError socket;
+        recvallerror own;
+    } error;
+} typedef recvallresult;
+
+recvallresult recvallwithtimeout(const Socket *socket, monotime_t timeout, void **data, size_t *size);
 
 /*
     Returns an allocated block of memory (string) that contains read specified file content.

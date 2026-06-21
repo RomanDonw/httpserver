@@ -5,53 +5,57 @@
 #include <string.h>
 #include <stdarg.h>
 
-SocketError recvallwithtimeout(const Socket *socket, monotime_t timeout, void **data, size_t *size)
+recvallresult recvallwithtimeout(const Socket *socket, monotime_t timeout, void **data, size_t *size)
 {
     SocketError err;
     char *ret = NULL;
     size_t retsz = 0;
 
     monotime_t lastrecv, currtime;
-    monotime_now_s(&lastrecv);
+    if (!monotime_now(&lastrecv)) goto errorquit_monotime;
     
     char buff[512];
     size_t availsz;
     while (true)
     {
-        monotime_now_s(&currtime);
+        if (!monotime_now(&currtime)) goto errorquit_monotime;
         if (currtime >= lastrecv + timeout) break;
 
         if (!socket_isnonblocking(socket))
         {
-            if ((err = socket_getreadablebytes(socket, &availsz)) != SocketError_Success) goto errorquit;
+            if ((err = socket_getreadablebytes(socket, &availsz)) != SocketError_Success) goto errorquit_socket;
             if (!availsz) continue;
         }
 
         if ((err = socket_recv(socket, buff, sizeof(buff), &availsz, SOCKET_RECV_NOFLAGS)) != SocketError_Success)
         {
             if (err == SocketError_WouldBlock) continue;
-            goto errorquit;
+            goto errorquit_socket;
         }
-        if (!availsz) { err = SocketError_ConnectionReset; goto errorquit; }
+        if (!availsz) { err = SocketError_ConnectionReset; goto errorquit_socket; }
 
         {
             void *new_ret = realloc(ret, retsz + availsz);
-            if (!new_ret) { err = SocketError_MemoryAllocationFailed; goto errorquit; }
+            if (!new_ret) { err = SocketError_MemoryAllocationFailed; goto errorquit_socket; }
             ret = new_ret;
         }
         memcpy(ret + retsz, buff, availsz);
         retsz += availsz;
 
-        monotime_now_s(&lastrecv);
+        if (!monotime_now(&lastrecv)) goto errorquit_monotime;
     }
 
     *data = ret;
     if (size) *size = retsz;
-    return SocketError_Success;
+    return (recvallresult){ .type = RECVALL_NOERROR };
 
-    errorquit:
+    errorquit_socket:
         if (ret) free(ret);
-    return err;
+    return (recvallresult){ .type = RECVALL_SOCKETERROR, .error.socket = err };
+
+    errorquit_monotime:
+        if (ret) free(ret);
+    return (recvallresult){ .type = RECVALL_OWNERROR, .error.own = RECVALLERROR_MONOTIME };
 }
 
 void __logerror(const char *filename, int line, const char *functionname, const char *format, ...)

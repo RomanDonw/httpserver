@@ -93,8 +93,8 @@ int main(int argc, char **argv)
     char ip4str[IPV4ADDRSTRSIZE];
     Socket *cl;
     socklen_t saddrsz;
-    size_t sz;
     char *data = NULL;
+    recvallresult recvres;
     while (working)
     {
         // accept connection & store client socket address.
@@ -115,8 +115,32 @@ int main(int argc, char **argv)
 
         // =============================================================================
 
-        if ((err = recvallwithtimeout(cl, 50 * MONOTIME_MILLISECOND, (void **)&data, &sz)) != SocketError_Success)
-        { printf("Occured error while reading request: %s.", socket_strerror(err)); goto closeconn; }
+        recvres = recvallwithtimeout(cl, 50 * MONOTIME_MILLISECOND, (void **)&data, NULL);
+        if (recvres.type != RECVALL_NOERROR)
+        {
+            switch (recvres.type)
+            {
+                case RECVALL_SOCKETERROR:
+                    printf("Occured socket-related error while reading request: %s.", socket_strerror(recvres.error.socket));
+                    break;
+
+                case RECVALL_OWNERROR:
+                    switch (recvres.error.own)
+                    {
+                        case RECVALLERROR_MONOTIME:
+                            puts("Occured error related with getting monotonic time while reading request.");
+                            break;
+
+                        default:
+                            puts("Occured unknown error while reading request.");
+                    }
+                    break;
+
+                default:
+                    puts("Occured error with unknown type while reading request.");
+            }
+            goto closeconn;
+        }
         if (!data) { puts("No request data available."); sendresp_badrequest(cl); goto closeconn; }
 
         const char *methodstr = NULL;
