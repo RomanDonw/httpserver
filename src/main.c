@@ -86,7 +86,7 @@ int main(int argc, char **argv)
     CHECKSOCKERR(err, socket_bind(serv, &saddr, sizeof(saddr)));
     CHECKSOCKERR(err, socket_listen(serv, 8));
 
-    printf("Started HTTP 1.0 server at %s:%hu.\n", addrstr, port);
+    printf("Started HTTP 1.0 server at %s:%hu.\n\n", addrstr, port);
 
     // =============================================================================
 
@@ -116,11 +116,8 @@ int main(int argc, char **argv)
         // =============================================================================
 
         if ((err = recvallwithtimeout(cl, 50 * MONOTIME_MILLISECOND, (void **)&data, &sz)) != SocketError_Success)
-        {
-            // tmp code:
-            herr_libsocket(err);
-        }
-        if (!data) goto nodata;
+        { printf("Occured error while reading request: %s.", socket_strerror(err)); goto closeconn; }
+        if (!data) { puts("No request data available."); sendresp_badrequest(cl); goto closeconn; }
 
         const char *methodstr = NULL;
         const char *urlstr = NULL;
@@ -128,37 +125,37 @@ int main(int argc, char **argv)
 
         {
             char *tmp = strchr(data, ' ');
-            if (!tmp) { puts("Error parsing HTTP request method."); sendresp_badrequest(cl); goto closeconn; }
+            if (!tmp) { puts("Error parsing HTTP request method."); sendresp_badrequest(cl); goto finishconn; }
             *tmp = '\0';
             methodstr = data;
             
-            if (!(*(++tmp))) { puts("Reached end of request."); sendresp_badrequest(cl); goto closeconn; }
+            if (!(*(++tmp))) { puts("Reached end of request."); sendresp_badrequest(cl); goto finishconn; }
 
             urlstr = tmp;
             tmp = strchr(tmp, ' ');
-            if (!tmp) { puts("Error parsing HTTP request URL."); sendresp_badrequest(cl); goto closeconn; }
+            if (!tmp) { puts("Error parsing HTTP request URL."); sendresp_badrequest(cl); goto finishconn; }
             *tmp = '\0';
             
-            if (!(*(++tmp))) { puts("Reached end of request."); sendresp_badrequest(cl); goto closeconn; }
+            if (!(*(++tmp))) { puts("Reached end of request."); sendresp_badrequest(cl); goto finishconn; }
 
             versionstr = tmp;
             tmp = strchr(tmp, '\r');
-            if (!tmp) { puts("Error parsing HTTP request version."); sendresp_badrequest(cl); goto closeconn; }
+            if (!tmp) { puts("Error parsing HTTP request version."); sendresp_badrequest(cl); goto finishconn; }
             *tmp = '\0';
 
-            if (*(++tmp) != '\n') { puts("Reached end of request."); sendresp_badrequest(cl); goto closeconn; }
+            if (*(++tmp) != '\n') { puts("Reached end of request."); sendresp_badrequest(cl); goto finishconn; }
 
             puts("Successfully parsed HTTP request.");
         }
 
-        printf("HTTP request info:\n -  Method: %s.\n -  URL: \"%s\".\n -  Version: %s.\n\n", methodstr, urlstr, versionstr);
+        printf("HTTP request info:\n -  Method: %s.\n -  URL: \"%s\".\n -  Version: %s.\n", methodstr, urlstr, versionstr);
 
         if (strcmp(versionstr, "HTTP/1.0") && strcmp(versionstr, "HTTP/1.1"))
         {
             puts("Request HTTP version not supported.");
             const char resp[] = "HTTP/1.0 505 HTTP Version Not Supported\r\n\r\n";
             socket_send(cl, resp, sizeof(resp) - 1, NULL, SOCKET_SEND_NOFLAGS);
-            goto closeconn;
+            goto finishconn;
         }
 
         if (strcmp(methodstr, "GET"))
@@ -166,31 +163,29 @@ int main(int argc, char **argv)
             puts("Request method not supported.");
             const char resp[] = "HTTP/1.0 405 Method Not Allowed\r\nAllow: GET\r\n\r\n";
             socket_send(cl, resp, sizeof(resp) - 1, NULL, SOCKET_SEND_NOFLAGS);
-            goto closeconn;
+            goto finishconn;
         }
 
         {
             char *response = NULL;
             size_t responsesz = 0;
             if (!formatstr(&response, &responsesz, "HTTP/1.0 200 OK\r\nContent-Type: text/html\r\nContent-Length: %zu\r\nConnection: close\r\n\r\n%s", pagesize - 1, page))
-            { puts("Error formatting response."); goto closeconn; }
-
-            puts(response);
+            { puts("Error formatting response."); goto finishconn; }
 
             socket_send(cl, response, responsesz, NULL, SOCKET_SEND_NOFLAGS);
 
             free(response);
         }
 
-        closeconn:
+        finishconn:
         free(data);
 
-        nodata:
+        closeconn:
 
         // =============================================================================
 
         CHECKSOCKERR(err, socket_close(cl));
-        printf("Closed connection with %s:%hu.\n", ip4str, port);
+        printf("Closed connection with %s:%hu.\n\n", ip4str, port);
     }
 
     // =============================================================================
@@ -198,7 +193,7 @@ int main(int argc, char **argv)
     free(page);
 
     CHECKSOCKERR(err, socket_close(serv));
-    puts("HTTP 1.0 server stopped successfully.");
+    puts("\nHTTP 1.0 server stopped successfully.");
 
     CHECKSOCKERR(err, libsocket_cleanup());
 
