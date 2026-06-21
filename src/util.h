@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <libmonotime.h>
 #include <libsocket.h>
+#include <stdbool.h>
 
 #if defined(_MSC_VER) && (_MSC_VER < 1300)
     #define __func__ __FUNCTION__
@@ -34,6 +35,15 @@ SocketError recvallwithtimeout(const Socket *socket, monotime_t timeout, void **
     Returns an allocated block of memory (string) that contains read specified file content.
     Can return NULL (when error occured).
 */
-char *readfulltextfile(const char *filepath);
+bool fullreadfile(char **str, size_t *size, const char *filepath);
+
+/*
+    Formats string and passes it through 'str' parameter.
+    Parameter 'size' is optional (can be NULL).
+    Returns true on success and false on failed.
+    Values passes by pointers changed only if function completed successfully.
+    Result string allocates in heap and requires 'free' call after usage.
+*/
+bool formatstr(char **str, size_t *size, const char *format, ...);
 
 #endif

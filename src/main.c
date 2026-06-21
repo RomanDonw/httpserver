@@ -16,6 +16,8 @@ void herr_parsearg(const char *pname) { fprintf(stderr, "Error parsing %s parame
 
 #define CHECKSOCKERR(err_var, code) { if ((err_var = (code)) != SocketError_Success) herr_libsocket(err_var); }
 
+void sendresp_badrequest(const Socket *socket);
+
 // 'volatile' need to prevent 'ignoring' on optimization.
 volatile bool working = true;
 
@@ -39,9 +41,6 @@ int main(int argc, char **argv)
     if (!monotime_now(NULL)) { fputs("This platform doesn't support monotonic time.", stderr); return 1; }
 
     // =============================================================================
-
-    const char http400msg[] = "Bad request";
-    const char http505msg[] = "Method not allowed";
 
     SocketError err;
     IPv4Address addr = IPV4ADDR_LOOPBACK;
@@ -71,6 +70,10 @@ int main(int argc, char **argv)
             }
         }
     }
+
+    char *page = NULL;
+    size_t pagesize = 0;
+    if (!fullreadfile(&page, &pagesize, "res/page.html")) { puts("Error reading \"res/page.html\" file."); return 1; }
 
     SocketIPv4Address saddr;
     CHECKSOCKERR(err, socket_packsockaddr(&saddr, SocketAddressFamily_IPv4, &addr, port));
@@ -117,48 +120,7 @@ int main(int argc, char **argv)
             // tmp code:
             herr_libsocket(err);
         }
-
-        puts(data);
-
-        #if 0
-
-        char *methodstr = NULL;
-        size_t methodlen = 0;
-        
-        char *_tempptr = strchr(data, ' ');
-        if (_tempptr)
-        {
-            methodlen = _tempptr - data;
-            //printf("=== METHOD LEN: %zu\n", methodlen);
-
-            methodstr = malloc_s(methodlen + 1);
-            if (methodlen) memcpy(methodstr, data, methodlen);
-            methodstr[methodlen] = '\0';
-        }
-        else { sendHTTPshortresp(cl, 400, http400msg); goto closecl; }
-
-        //printf("=== METHOD: \"%s\"\n", methodstr);
-
-        if (strcmp(methodstr, "GET")) { sendHTTPshortresp(cl, 505, http505msg); goto closecl; }
-
-        char *urlstr = NULL;
-        size_t urllen = 0;
-        
-
-        char *tmp = strchr(tmp + sizeof(char) * 1, ' ');
-        if (tmp)
-        {
-            methodlen = tmp - data;
-            //printf("=== METHOD LEN: %zu\n", methodlen);
-
-            methodstr = malloc_s(methodlen + 1);
-            if (methodlen) memcpy(methodstr, data, methodlen);
-            methodstr[methodlen] = '\0';
-        }
-        else { sendHTTPshortresp(cl, 400, http400msg); goto closecl; }
-
-        free(methodstr);
-        #endif
+        if (!data) goto nodata;
 
         const char *methodstr = NULL;
         const char *urlstr = NULL;
@@ -166,46 +128,64 @@ int main(int argc, char **argv)
 
         {
             char *tmp = strchr(data, ' ');
-            if (!tmp) { puts("Error parsing HTTP request method."); goto closeconn; }
+            if (!tmp) { puts("Error parsing HTTP request method."); sendresp_badrequest(cl); goto closeconn; }
             *tmp = '\0';
             methodstr = data;
             
-            if (!(*(++tmp))) { puts("Reached end of request."); goto closeconn; }
+            if (!(*(++tmp))) { puts("Reached end of request."); sendresp_badrequest(cl); goto closeconn; }
 
             urlstr = tmp;
             tmp = strchr(tmp, ' ');
-            if (tmp) { puts("Error parsing HTTP request URL."); goto closeconn; }
+            if (!tmp) { puts("Error parsing HTTP request URL."); sendresp_badrequest(cl); goto closeconn; }
+            *tmp = '\0';
             
-            if (!(*(++tmp))) { puts("Reached end of request."); goto closeconn; }
+            if (!(*(++tmp))) { puts("Reached end of request."); sendresp_badrequest(cl); goto closeconn; }
 
+            versionstr = tmp;
             tmp = strchr(tmp, '\r');
-            if (!tmp) 
+            if (!tmp) { puts("Error parsing HTTP request version."); sendresp_badrequest(cl); goto closeconn; }
+            *tmp = '\0';
+
+            if (*(++tmp) != '\n') { puts("Reached end of request."); sendresp_badrequest(cl); goto closeconn; }
+
+            puts("Successfully parsed HTTP request.");
+        }
+
+        printf("HTTP request info:\n -  Method: %s.\n -  URL: \"%s\".\n -  Version: %s.\n\n", methodstr, urlstr, versionstr);
+
+        if (strcmp(versionstr, "HTTP/1.0") && strcmp(versionstr, "HTTP/1.1"))
+        {
+            puts("Request HTTP version not supported.");
+            const char resp[] = "HTTP/1.0 505 HTTP Version Not Supported\r\n\r\n";
+            socket_send(cl, resp, sizeof(resp) - 1, NULL, SOCKET_SEND_NOFLAGS);
+            goto closeconn;
+        }
+
+        if (strcmp(methodstr, "GET"))
+        {
+            puts("Request method not supported.");
+            const char resp[] = "HTTP/1.0 405 Method Not Allowed\r\nAllow: GET\r\n\r\n";
+            socket_send(cl, resp, sizeof(resp) - 1, NULL, SOCKET_SEND_NOFLAGS);
+            goto closeconn;
         }
 
         {
-            const char page[] = "<h1>Example page</h1><hr>This is an example web page.<br><br>It works!";
-            size_t pagelen = sizeof(page) - 1;
-
-            #define FORMATSTR(out_str, size) (\
-                snprintf(out_str, size, "HTTP/1.0 200 OK\r\nContent-Type: text/html\r\nContent-Length: %zu\r\nConnection: close\r\n\r\n%s\r\n", pagelen, page)\
-            )
-
-            int responsesz = FORMATSTR(NULL, 0);
-            if (responsesz <= 0) { puts("snprintf formatting error."); goto closeconn; }
-            
-            char *response = malloc_s(responsesz);
-            FORMATSTR(response, responsesz);
+            char *response = NULL;
+            size_t responsesz = 0;
+            if (!formatstr(&response, &responsesz, "HTTP/1.0 200 OK\r\nContent-Type: text/html\r\nContent-Length: %zu\r\nConnection: close\r\n\r\n%s", pagesize - 1, page))
+            { puts("Error formatting response."); goto closeconn; }
 
             puts(response);
+
             socket_send(cl, response, responsesz, NULL, SOCKET_SEND_NOFLAGS);
 
             free(response);
-
-            #undef FORMATSTR
         }
 
         closeconn:
         free(data);
+
+        nodata:
 
         // =============================================================================
 
@@ -215,10 +195,18 @@ int main(int argc, char **argv)
 
     // =============================================================================
 
+    free(page);
+
     CHECKSOCKERR(err, socket_close(serv));
     puts("HTTP 1.0 server stopped successfully.");
 
     CHECKSOCKERR(err, libsocket_cleanup());
 
     return 0;
+}
+
+void sendresp_badrequest(const Socket *socket)
+{
+    static const char response[] = "HTTP/1.0 400 Bad Request\r\n\r\n";
+    socket_send(socket, response, sizeof(response) - 1, NULL, SOCKET_SEND_NOFLAGS);
 }

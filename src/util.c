@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
+#include <stdarg.h>
 
 SocketError recvallwithtimeout(const Socket *socket, monotime_t timeout, void **data, size_t *size)
 {
@@ -81,49 +82,70 @@ void *realloc_s(void *ptr, size_t size)
     return ret;
 }
 
-char *readfulltextfile(const char *filename)
+bool fullreadfile(char **str, size_t *size, const char *filepath)
 {
     const size_t BUFFER_SIZE = 512;
 
     char *ret = NULL;
-    size_t size = 0;
+    size_t sz = 0;
 
-    FILE *f = fopen(filename, "r");
-    if (!f) return NULL;
+    FILE *f = fopen(filepath, "r");
+    if (!f) return false;
 
     char buffer[BUFFER_SIZE];
 
     size_t readblocks;
-<<<<<<< HEAD
-    while ((readblocks = fread(buffer, sizeof(char), BUFFER_SIZE, f)))
->>>>>>> 939b0112c91cd26ef23d797bc28b08f6cbc85876
+    while ((readblocks = fread(buffer, 1, BUFFER_SIZE, f)))
     {
         // allocate memory
         {
-            char *new_ret = realloc(ret, size + readblocks * sizeof(char));
+            char *new_ret = realloc(ret, sz + readblocks);
             if (!new_ret) goto errorquit;
             ret = new_ret;
         }
 
-        memcpy(ret + size, buffer, readblocks * sizeof(char));
+        memcpy(ret + sz, buffer, readblocks);
 
-        size += readblocks * sizeof(char);
+        sz += readblocks;
     }
 
     // expand buffer to add zero string terminator byte to end of buffer.
     {
-        char *new_ret = realloc(ret, size + sizeof(char));
+        char *new_ret = realloc(ret, sz + 1);
         if (!new_ret) goto errorquit;
         ret = new_ret;
     }
 
-    ret[size] = '\0';
+    ret[sz++] = '\0';
 
     fclose(f);
-    return ret;
+    *str = ret;
+    if (size) *size = sz;
+    return true;
 
     errorquit:
         if (ret) free(ret);
         fclose(f);
-    return NULL;
+    return false;
+}
+
+bool formatstr(char **str, size_t *size, const char *format, ...)
+{
+    va_list args1, args2;
+    va_start(args1, format);
+    va_copy(args2, args1);
+
+    int sz = vsnprintf(NULL, 0, format, args1);
+    if (sz <= 0) return false;
+    va_end(args1);
+
+    char *ret = malloc(sz);
+    if (!ret) return false;
+
+    if (vsnprintf(ret, sz, format, args2) <= 0) { free(ret); return false; }
+    va_end(args2);
+
+    *str = ret;
+    if (size) *size = sz;
+    return true;
 }
