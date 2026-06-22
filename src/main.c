@@ -188,7 +188,7 @@ int main(int argc, char **argv)
             goto finishconn;
         }
 
-        if (strcmp(req.method, "GET"))
+        if (strcmp(req.method, "GET") && strcmp(req.method, "HEAD"))
         {
             puts("Request method not implemented.");
             const char resp[] = "HTTP/1.0 501 Not Implemented\r\n\r\n";
@@ -199,8 +199,17 @@ int main(int argc, char **argv)
         {
             char *response = NULL;
             size_t responsesz = 0;
-            if (!formatstr(&response, &responsesz, "HTTP/1.0 200 OK\r\nContent-Type: text/html\r\nContent-Length: %zu\r\nConnection: close\r\n\r\n%s", pagesize - 1, page))
-            { puts("Error formatting response."); goto finishconn; }
+
+            if (!strcmp(req.method, "HEAD"))
+            {
+                if (!formatstr(&response, &responsesz, "HTTP/1.0 200 OK\r\nContent-Type: text/html\r\nContent-Length: %zu\r\nConnection: close\r\n\r\n", pagesize - 1))
+                { puts("Error formatting response."); goto finishconn; }
+            }
+            else
+            {
+                if (!formatstr(&response, &responsesz, "HTTP/1.0 200 OK\r\nContent-Type: text/html\r\nContent-Length: %zu\r\nConnection: close\r\n\r\n%s", pagesize - 1, page))
+                { puts("Error formatting response."); goto finishconn; }
+            }
 
             socket_send(cl, response, responsesz, NULL, SOCKET_SEND_NOFLAGS);
 
