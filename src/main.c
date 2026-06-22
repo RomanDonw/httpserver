@@ -175,6 +175,11 @@ int main(int argc, char **argv)
 
         printf("HTTP request info:\n -  Method: %s.\n -  URL: \"%s\".\n -  Version: %s.\n", req.method, req.url, req.version);
 
+        printf("HTTP headers count: %zu.\nHTTP headers:\n", req.headerscount);
+        for (size_t i = 0; i < req.headerscount; i++) printf("    [%zu]: \"%s\" = \"%s\".\n", i, req.headers[i].name, req.headers[i].value);
+
+        printf("HTTP request body size: %zu.\n", req.bodysize);
+
         if (strcmp(req.version, "HTTP/1.0") && strcmp(req.version, "HTTP/1.1"))
         {
             puts("Request HTTP version not supported.");
@@ -185,14 +190,11 @@ int main(int argc, char **argv)
 
         if (strcmp(req.method, "GET"))
         {
-            puts("Request method not supported.");
-            const char resp[] = "HTTP/1.0 405 Method Not Allowed\r\nAllow: GET\r\n\r\n";
+            puts("Request method not implemented.");
+            const char resp[] = "HTTP/1.0 501 Not Implemented\r\n\r\n";
             socket_send(cl, resp, sizeof(resp) - 1, NULL, SOCKET_SEND_NOFLAGS);
             goto finishconn;
         }
-
-        printf("HTTP headers count: %zu.\nHTTP headers:\n", req.headerscount);
-        for (size_t i = 0; i < req.headerscount; i++) printf("    [%zu]: \"%s\" = \"%s\".\n", i, req.headers[i].name, req.headers[i].value);
 
         {
             char *response = NULL;
