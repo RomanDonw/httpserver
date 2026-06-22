@@ -230,11 +230,12 @@ int main(int argc, char **argv)
             if (!memfcmp(req.method, req.methodsize, "HEAD", sizeof("HEAD")))
             {
                 {
-                    char *new_response = realloc(response, responsesz + pagesize);
+                    char *new_response = realloc(response, responsesz + pagesize - 1);
                     if (!new_response) { puts("Not enough memory to complete building response."); sendresp_intrserverr(cl); goto finishconn; }
                     response = new_response;
                 }
 
+                responsesz--;
                 memcpy(response + responsesz, page, pagesize);
                 responsesz += pagesize;
             }

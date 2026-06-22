@@ -132,14 +132,20 @@ bool formatstr(char **str, size_t *size, const char *format, ...)
     va_copy(args2, args1);
 
     int sz = vsnprintf(NULL, 0, format, args1);
-    if (sz <= 0) return false;
     va_end(args1);
+    if (sz++ < 0) { va_end(args2); return false; }
 
     char *ret = malloc(sz);
-    if (!ret) return false;
+    if (!ret) { va_end(args2); return false; }
 
-    if (vsnprintf(ret, sz, format, args2) <= 0) { free(ret); return false; }
-    va_end(args2);
+    if (sz > 1)
+    {
+        bool failed = vsnprintf(ret, sz, format, args2) <= 0;
+        va_end(args2);
+        if (failed) { free(ret); return false; }
+    }
+    else
+    { va_end(args2); *ret = '\0'; }
 
     *str = ret;
     if (size) *size = sz;
