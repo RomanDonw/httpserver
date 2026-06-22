@@ -191,6 +191,9 @@ int main(int argc, char **argv)
             goto finishconn;
         }
 
+        printf("HTTP headers count: %zu.\nHTTP headers:\n", req.headerscount);
+        for (size_t i = 0; i < req.headerscount; i++) printf("    [%zu]: \"%s\" = \"%s\".\n", i, req.headers[i].name, req.headers[i].value);
+
         {
             char *response = NULL;
             size_t responsesz = 0;
