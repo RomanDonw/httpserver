@@ -1,13 +1,47 @@
-<h1>Example page</h1>
+<!DOCTYPE html>
+<html>
+    <head>
+        <style>
+            :root {
+                color-scheme: light;
+            }
+        </style>
+    </head>
 
-<hr>
+    <body>
+        <h1>Example page</h1>
 
-This is an example web page. <br> <br>
-It works! <br> <br>
+        <hr>
 
-<form method=POST action="/postdata">
-    <label for="field">Text: </label>
-    <input type=input name="text"> <br> <br>
-    
-    <input type=submit value="Submit data">
-</from>
+        This is an example web page. <br> <br>
+        It works! <br> <br>
+
+        <form method=POST action="/postdata">
+            <label for="field">Text: </label>
+            <input type=input name="text"> <br> <br>
+            
+            <input type=submit value="Submit data">
+        </from>
+
+        <hr>
+
+        Page theme:
+        <div id="themeselector">
+            <input type=checkbox id="checkbox"> <span id="text"></span>
+        </div>
+
+        
+        <script>
+            const rootelement = document.querySelector(":root");
+            const themeselector_checkbox = document.querySelector("#themeselector input[type=checkbox]#checkbox");
+            const themeselector_textelement = document.querySelector("#themeselector #text");
+            
+            const updatetheme = themeselector.onclick = () =>
+            {
+                rootelement.style.colorScheme = themeselector_checkbox.checked ? "dark" : "light";
+                themeselector_textelement.innerHTML = themeselector_checkbox.checked ? "Dark" : "Light";
+            };
+            updatetheme();
+        </script>
+    </body>
+</html>
