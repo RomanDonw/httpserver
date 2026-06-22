@@ -150,31 +150,6 @@ int main(int argc, char **argv)
         const char *urlstr = NULL;
         const char *versionstr = NULL;
 
-        {
-            char *tmp = strchr(data, ' ');
-            if (!tmp) { puts("Error parsing HTTP request method."); sendresp_badrequest(cl); goto finishconn; }
-            *tmp = '\0';
-            methodstr = data;
-            
-            if (!(*(++tmp))) { puts("Reached end of request."); sendresp_badrequest(cl); goto finishconn; }
-
-            urlstr = tmp;
-            tmp = strchr(tmp, ' ');
-            if (!tmp) { puts("Error parsing HTTP request URL."); sendresp_badrequest(cl); goto finishconn; }
-            *tmp = '\0';
-            
-            if (!(*(++tmp))) { puts("Reached end of request."); sendresp_badrequest(cl); goto finishconn; }
-
-            versionstr = tmp;
-            tmp = strchr(tmp, '\r');
-            if (!tmp) { puts("Error parsing HTTP request version."); sendresp_badrequest(cl); goto finishconn; }
-            *tmp = '\0';
-
-            if (*(++tmp) != '\n') { puts("Reached end of request."); sendresp_badrequest(cl); goto finishconn; }
-
-            puts("Successfully parsed HTTP request.");
-        }
-
         printf("HTTP request info:\n -  Method: %s.\n -  URL: \"%s\".\n -  Version: %s.\n", methodstr, urlstr, versionstr);
 
         if (strcmp(versionstr, "HTTP/1.0") && strcmp(versionstr, "HTTP/1.1"))
