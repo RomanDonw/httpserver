@@ -8,6 +8,7 @@
 #include <signal.h>
 #include <libmonotime.h>
 
+#include "request.h"
 #include "util.h"
 
 // herr_... - error handler prefix.
@@ -94,7 +95,9 @@ int main(int argc, char **argv)
     Socket *cl;
     socklen_t saddrsz;
     char *data = NULL;
+    size_t datasize = 0;
     recvallresult recvres;
+    parseHTTPrequesterror_t perr;
     while (working)
     {
         // accept connection & store client socket address.
@@ -118,7 +121,7 @@ int main(int argc, char **argv)
 
         // =============================================================================
 
-        recvres = recvallwithtimeout(cl, (void **)&data, NULL, 50 * MONOTIME_MILLISECOND, 10 * MONOTIME_SECOND);
+        recvres = recvallwithtimeout(cl, (void **)&data, &datasize, 50 * MONOTIME_MILLISECOND, 10 * MONOTIME_SECOND);
         if (recvres.type != RECVALL_NOERROR)
         {
             switch (recvres.type)
@@ -146,13 +149,33 @@ int main(int argc, char **argv)
         }
         if (!data) { puts("No request data available."); sendresp_badrequest(cl); goto closeconn; }
 
-        const char *methodstr = NULL;
-        const char *urlstr = NULL;
-        const char *versionstr = NULL;
+        HTTPRequest req;
+        perr = parseHTTPrequest(&req, data, datasize);
+        free(data);
+        if (perr != PARSEREQUESTERROR_SUCCESS)
+        {
+            switch (perr)
+            {
+                case PARSEREQUESTERROR_INCORRREQ:
+                    puts("Bad request.");
+                    sendresp_badrequest(cl);
+                    break;
 
-        printf("HTTP request info:\n -  Method: %s.\n -  URL: \"%s\".\n -  Version: %s.\n", methodstr, urlstr, versionstr);
+                case PARSEREQUESTERROR_NOMEM:
+                    puts("Out of memory while parsing request.");
+                    break;
 
-        if (strcmp(versionstr, "HTTP/1.0") && strcmp(versionstr, "HTTP/1.1"))
+                default:
+                    puts("Unknown error while parsing request.");
+            }
+            goto closeconn;
+        }
+
+        // =============================================================================
+
+        printf("HTTP request info:\n -  Method: %s.\n -  URL: \"%s\".\n -  Version: %s.\n", req.method, req.url, req.version);
+
+        if (strcmp(req.version, "HTTP/1.0") && strcmp(req.version, "HTTP/1.1"))
         {
             puts("Request HTTP version not supported.");
             const char resp[] = "HTTP/1.0 505 HTTP Version Not Supported\r\n\r\n";
@@ -160,7 +183,7 @@ int main(int argc, char **argv)
             goto finishconn;
         }
 
-        if (strcmp(methodstr, "GET"))
+        if (strcmp(req.method, "GET"))
         {
             puts("Request method not supported.");
             const char resp[] = "HTTP/1.0 405 Method Not Allowed\r\nAllow: GET\r\n\r\n";
@@ -180,7 +203,8 @@ int main(int argc, char **argv)
         }
 
         finishconn:
-        free(data);
+
+        freeHTTPrequest(&req);
 
         closeconn:
 
