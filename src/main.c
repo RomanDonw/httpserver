@@ -118,7 +118,7 @@ int main(int argc, char **argv)
 
         // =============================================================================
 
-        recvres = recvallwithtimeout(cl, 50 * MONOTIME_MILLISECOND, (void **)&data, NULL);
+        recvres = recvallwithtimeout(cl, (void **)&data, NULL, 50 * MONOTIME_MILLISECOND, 10 * MONOTIME_SECOND);
         if (recvres.type != RECVALL_NOERROR)
         {
             switch (recvres.type)

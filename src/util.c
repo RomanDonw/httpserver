@@ -5,21 +5,22 @@
 #include <string.h>
 #include <stdarg.h>
 
-recvallresult recvallwithtimeout(const Socket *socket, monotime_t timeout, void **data, size_t *size)
+recvallresult recvallwithtimeout(const Socket *socket, void **data, size_t *size, monotime_t singlemaxwaittime, monotime_t fullmaxwaittime)
 {
     SocketError err;
     char *ret = NULL;
     size_t retsz = 0;
 
-    monotime_t lastrecv, currtime;
-    if (!monotime_now(&lastrecv)) goto errorquit_monotime;
-    
+    monotime_t lastrecv, currtime, starttime;
+    if (!monotime_now(&starttime)) goto errorquit_monotime;
+    lastrecv = starttime;
+
     char buff[512];
     size_t availsz;
     while (true)
     {
         if (!monotime_now(&currtime)) goto errorquit_monotime;
-        if (currtime >= lastrecv + timeout) break;
+        if (currtime >= lastrecv + singlemaxwaittime || currtime >= starttime + fullmaxwaittime) break;
 
         if (!socket_isnonblocking(socket))
         {

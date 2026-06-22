@@ -23,12 +23,6 @@ void __logerror(const char *filename, int line, const char *functionname, const 
 void *malloc_s(size_t size); // can`t return NULL.
 void *realloc_s(void *ptr, size_t size); // can`t return NULL.
 
-/*
-    Stores pointer to an allocated block of memory with all read data from socket taking into account the timeout.
-    'size' can be NULL.
-    can store *data = NULL & *size = 0 if no data read.
-    no changes *data & *size on error.
-*/
 
 enum recvallresulttype
 {
@@ -52,11 +46,18 @@ struct recvallresult
     } error;
 } typedef recvallresult;
 
-recvallresult recvallwithtimeout(const Socket *socket, monotime_t timeout, void **data, size_t *size);
+/*
+    Stores pointer to an allocated block of memory with all read data from socket taking into account the timeout.
+    'size' can be NULL.
+    can store *data = NULL & *size = 0 if no data read.
+    no changes *data & *size on error.
+*/
+
+recvallresult recvallwithtimeout(const Socket *socket, void **data, size_t *size, monotime_t singlemaxwaittime, monotime_t fullmaxwaittime);
 
 /*
-    Returns an allocated block of memory (string) that contains read specified file content.
-    Can return NULL (when error occured).
+Returns an allocated block of memory (string) that contains read specified file content.
+Can return NULL (when error occured).
 */
 bool fullreadfile(char **str, size_t *size, const char *filepath);
 
