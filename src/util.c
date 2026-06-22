@@ -47,7 +47,7 @@ recvallresult recvallwithtimeout(const Socket *socket, void **data, size_t *size
     }
 
     *data = ret;
-    if (size) *size = retsz;
+    *size = retsz;
     return (recvallresult){ .type = RECVALL_NOERROR };
 
     errorquit_socket:
@@ -154,3 +154,6 @@ bool formatstr(char **str, size_t *size, const char *format, ...)
     if (size) *size = sz;
     return true;
 }
+
+bool isoutofbound(const void *inbuffptr, const void *onbuffptr, size_t buffsize)
+{ return inbuffptr - onbuffptr >= buffsize || inbuffptr < onbuffptr; }

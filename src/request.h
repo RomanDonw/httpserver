@@ -21,6 +21,7 @@ struct HTTPRequest
     size_t headerscount;
 
     const char *body;
+    size_t bodysize;
 } typedef HTTPRequest;
 
 enum parseHTTPrequesterror
@@ -29,6 +30,7 @@ enum parseHTTPrequesterror
 
     PARSEREQUESTERROR_NOMEM,
     PARSEREQUESTERROR_INCORRREQ,
+    PARSEREQUESTERROR_INVALARG
 } typedef parseHTTPrequesterror_t;
 
 parseHTTPrequesterror_t parseHTTPrequest(HTTPRequest *request, const char *raw, size_t rawsize); // rawsize cam be NULL.

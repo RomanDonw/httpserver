@@ -2,39 +2,44 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
+#include <stdio.h>
+
+#include "util.h"
 
 parseHTTPrequesterror_t parseHTTPrequest(HTTPRequest *request, const char *raw, size_t rawsize)
 {
+    if (!rawsize) return PARSEREQUESTERROR_INVALARG;
+
     HTTPRequest ret = {0};
 
-    if (!rawsize) rawsize = strlen(raw) + 1;
     ret.__raw = malloc(rawsize);
     if (!ret.__raw) return PARSEREQUESTERROR_NOMEM;
     memcpy(ret.__raw, raw, rawsize);
 
     // =====================================================
 
-    char *tmp = strchr(ret.__raw, ' ');
+    char *tmp = memchr(ret.__raw, ' ', rawsize);
     if (!tmp) goto badrequest;
     *tmp = '\0';
     ret.method = ret.__raw;
     
-    if (!(*(++tmp))) goto badrequest;
+    if (isoutofbound(++tmp, ret.__raw, rawsize)) goto badrequest;
 
     ret.url = tmp;
-    tmp = strchr(tmp, ' ');
+    tmp = memchr(tmp, ' ', rawsize - (tmp - ret.__raw));
     if (!tmp) goto badrequest;
     *tmp = '\0';
     
-    if (!(*(++tmp))) goto badrequest;
+    if (isoutofbound(++tmp, ret.__raw, rawsize)) goto badrequest;
 
     ret.version = tmp;
-    tmp = strchr(tmp, '\r');
+    tmp = memchr(tmp, '\r', rawsize - (tmp - ret.__raw));
     if (!tmp) goto badrequest;
     *tmp = '\0';
 
-    if (*(++tmp) != '\n') goto badrequest;
-    if (*(++tmp) == '\0') goto badrequest;
+    if (isoutofbound(++tmp, ret.__raw, rawsize) || *tmp != '\n') goto badrequest;
+    if (isoutofbound(++tmp, ret.__raw, rawsize)) goto badrequest;
 
     // parsing headers.
 
@@ -45,20 +50,20 @@ parseHTTPrequesterror_t parseHTTPrequest(HTTPRequest *request, const char *raw, 
         while (*tmp != '\r')
         {
             hname = tmp;
-            tmp = strchr(tmp, ':');
+            tmp = memchr(tmp, ':', rawsize - (tmp - ret.__raw));
             if (!tmp) goto badrequest;
             *tmp = '\0';
 
-            if (*(++tmp) != ' ') goto badrequest;
-            if (*(++tmp) == '\0') goto badrequest;
+            if (isoutofbound(++tmp, ret.__raw, rawsize) || *tmp != ' ') goto badrequest;
+            if (isoutofbound(++tmp, ret.__raw, rawsize)) goto badrequest;
 
             hvalue = tmp;
-            tmp = strchr(tmp, '\r');
+            tmp = memchr(tmp, '\r', rawsize - (tmp - ret.__raw));
             if (!tmp) goto badrequest;
             *tmp = '\0';
 
-            if (*(++tmp) != '\n') goto badrequest;
-            if (*(++tmp) == '\0') goto badrequest;
+            if (isoutofbound(++tmp, ret.__raw, rawsize) || *tmp != '\n') goto badrequest;
+            if (isoutofbound(++tmp, ret.__raw, rawsize)) goto badrequest;
 
             {
                 HTTPHeader *new_headers = realloc(ret.headers, (ret.headerscount + 1) * sizeof(HTTPHeader));
@@ -70,9 +75,13 @@ parseHTTPrequesterror_t parseHTTPrequest(HTTPRequest *request, const char *raw, 
         }
     }
 
-    if (*(++tmp) != '\n') goto badrequest;
+    if (isoutofbound(++tmp, ret.__raw, rawsize) || *tmp != '\n') goto badrequest;
 
-    ret.body = ++tmp;
+    if (!isoutofbound(++tmp, ret.__raw, rawsize))
+    {
+        ret.bodysize = rawsize - (tmp - ret.__raw);
+        ret.body = tmp;
+    }
 
     *request = ret;
     return PARSEREQUESTERROR_SUCCESS;

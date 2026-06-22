@@ -48,7 +48,6 @@ struct recvallresult
 
 /*
     Stores pointer to an allocated block of memory with all read data from socket taking into account the timeout.
-    'size' can be NULL.
     can store *data = NULL & *size = 0 if no data read.
     no changes *data & *size on error.
 */
@@ -69,5 +68,7 @@ bool fullreadfile(char **str, size_t *size, const char *filepath);
     Result string allocates in heap and requires 'free' call after usage.
 */
 bool formatstr(char **str, size_t *size, const char *format, ...);
+
+bool isoutofbound(const void *inbuffptr, const void *onbuffptr, size_t buffsize);
 
 #endif
