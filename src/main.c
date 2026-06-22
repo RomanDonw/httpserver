@@ -18,6 +18,7 @@ void herr_parsearg(const char *pname) { fprintf(stderr, "Error parsing %s parame
 #define CHECKSOCKERR(err_var, code) { if ((err_var = (code)) != SocketError_Success) herr_libsocket(err_var); }
 
 void sendresp_badrequest(const Socket *socket);
+void sendresp_intrserverr(const Socket *socket);
 
 // 'volatile' need to prevent 'ignoring' on optimization.
 volatile bool working = true;
@@ -98,6 +99,8 @@ int main(int argc, char **argv)
     size_t datasize = 0;
     recvallresult recvres;
     parseHTTPrequesterror_t perr;
+    size_t accepterrorscounter;
+
     while (working)
     {
         // accept connection & store client socket address.
@@ -105,17 +108,35 @@ int main(int argc, char **argv)
         if ((err = socket_accept(&cl, serv, &saddr, &saddrsz)) != SocketError_Success)
         {
             if (err == SocketError_WouldBlock) continue;
-            herr_libsocket(err);
+            printf("Accepting connection error: %s.\n", socket_strerror(err));
+
+            if (accepterrorscounter++ < 5) continue;
+            puts("Too many errors raised at the same moment. Shutting down the server.");
+            break;
         }
-        if (saddrsz != sizeof(saddr)) { puts("Internal size mismatch."); return 1; }
+        accepterrorscounter = 0;
+        if (saddrsz != sizeof(saddr))
+        {
+            puts("Internal size mismatch.");
+            sendresp_intrserverr(cl);
+            goto closeconn;
+        }
 
         // unpack IP and port from SocketAddress structure.
         if ((err = socket_unpacksockaddr(&saddr, SocketAddressFamily_IPv4, &addr, &port)) != SocketError_Success)
-        { printf("Error unpacking socket address: %s.\n", socket_strerror(err)); goto closeconn; }
+        {
+            printf("Error unpacking socket address: %s.\n", socket_strerror(err));
+            sendresp_intrserverr(cl);
+            goto closeconn;
+        }
 
         // output client address to console.
         if ((err = socket_addrtostr(&addr, SocketAddressFamily_IPv4, ip4str, sizeof(ip4str))) != SocketError_Success)
-        { printf("Error converting IPv4 binary representation to string equivalent: %s.\n", socket_strerror(err)); goto closeconn; }
+        {
+            printf("Error converting IPv4 binary representation to string equivalent: %s.\n", socket_strerror(err));
+            sendresp_intrserverr(cl);
+            goto closeconn;
+        }
 
         printf("Accepted client %s:%hu.\n", ip4str, port);
 
@@ -145,6 +166,7 @@ int main(int argc, char **argv)
                 default:
                     puts("Occured error with unknown type while reading request.");
             }
+            sendresp_intrserverr(cl);
             goto closeconn;
         }
         if (!data) { puts("No request data available."); sendresp_badrequest(cl); goto closeconn; }
@@ -163,24 +185,26 @@ int main(int argc, char **argv)
 
                 case PARSEREQUESTERROR_NOMEM:
                     puts("Out of memory while parsing request.");
+                    sendresp_intrserverr(cl);
                     break;
 
                 default:
                     puts("Unknown error while parsing request.");
+                    sendresp_intrserverr(cl);
             }
             goto closeconn;
         }
 
         // =============================================================================
 
-        printf("HTTP request info:\n -  Method: %s.\n -  URL: \"%s\".\n -  Version: %s.\n", req.method, req.url, req.version);
+        //printf("HTTP request info:\n -  Method: %s.\n -  URL: \"%s\".\n -  Version: %s.\n", req.method, req.url, req.version);
 
         printf("HTTP headers count: %zu.\nHTTP headers:\n", req.headerscount);
         for (size_t i = 0; i < req.headerscount; i++) printf("    [%zu]: \"%s\" = \"%s\".\n", i, req.headers[i].name, req.headers[i].value);
 
         printf("HTTP request body size: %zu.\n", req.bodysize);
 
-        if (strcmp(req.version, "HTTP/1.0") && strcmp(req.version, "HTTP/1.1"))
+        if (!memfcmp(req.version, req.versionsize, "HTTP/1.0", sizeof("HTTP/1.0")) && !memfcmp(req.version, req.versionsize, "HTTP/1.1", sizeof("HTTP/1.1")))
         {
             puts("Request HTTP version not supported.");
             const char resp[] = "HTTP/1.0 505 HTTP Version Not Supported\r\n\r\n";
@@ -188,7 +212,7 @@ int main(int argc, char **argv)
             goto finishconn;
         }
 
-        if (strcmp(req.method, "GET") && strcmp(req.method, "HEAD"))
+        if (!memfcmp(req.method, req.methodsize, "GET", sizeof("GET")) && !memfcmp(req.method, req.methodsize, "HEAD", sizeof("HEAD")))
         {
             puts("Request method not implemented.");
             const char resp[] = "HTTP/1.0 501 Not Implemented\r\n\r\n";
@@ -200,15 +224,19 @@ int main(int argc, char **argv)
             char *response = NULL;
             size_t responsesz = 0;
 
-            if (!strcmp(req.method, "HEAD"))
+            if (!formatstr(&response, &responsesz, "HTTP/1.0 200 OK\r\nContent-Type: text/html\r\nContent-Length: %zu\r\nConnection: close\r\n\r\n", pagesize - 1))
+            { puts("Error formatting response."); sendresp_intrserverr(cl); goto finishconn; }
+
+            if (!memfcmp(req.method, req.methodsize, "HEAD", sizeof("HEAD")))
             {
-                if (!formatstr(&response, &responsesz, "HTTP/1.0 200 OK\r\nContent-Type: text/html\r\nContent-Length: %zu\r\nConnection: close\r\n\r\n", pagesize - 1))
-                { puts("Error formatting response."); goto finishconn; }
-            }
-            else
-            {
-                if (!formatstr(&response, &responsesz, "HTTP/1.0 200 OK\r\nContent-Type: text/html\r\nContent-Length: %zu\r\nConnection: close\r\n\r\n%s", pagesize - 1, page))
-                { puts("Error formatting response."); goto finishconn; }
+                {
+                    char *new_response = realloc(response, responsesz + pagesize);
+                    if (!new_response) { puts("Not enough memory to complete building response."); sendresp_intrserverr(cl); goto finishconn; }
+                    response = new_response;
+                }
+
+                memcpy(response + responsesz, page, pagesize);
+                responsesz += pagesize;
             }
 
             socket_send(cl, response, responsesz, NULL, SOCKET_SEND_NOFLAGS);
@@ -216,16 +244,14 @@ int main(int argc, char **argv)
             free(response);
         }
 
+        // ============================================================================
+
         finishconn:
-
-        freeHTTPrequest(&req);
-
+            freeHTTPrequest(&req);
+            
         closeconn:
-
-        // =============================================================================
-
-        CHECKSOCKERR(err, socket_close(cl));
-        printf("Closed connection with %s:%hu.\n\n", ip4str, port);
+            CHECKSOCKERR(err, socket_close(cl));
+            printf("Closed connection with %s:%hu.\n\n", ip4str, port);
     }
 
     // =============================================================================
@@ -243,5 +269,11 @@ int main(int argc, char **argv)
 void sendresp_badrequest(const Socket *socket)
 {
     static const char response[] = "HTTP/1.0 400 Bad Request\r\n\r\n";
+    socket_send(socket, response, sizeof(response) - 1, NULL, SOCKET_SEND_NOFLAGS);
+}
+
+void sendresp_intrserverr(const Socket *socket)
+{
+    static const char response[] = "HTTP/1.0 500 Internal Server Error\r\n\r\n";
     socket_send(socket, response, sizeof(response) - 1, NULL, SOCKET_SEND_NOFLAGS);
 }

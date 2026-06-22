@@ -19,10 +19,11 @@ parseHTTPrequesterror_t parseHTTPrequest(HTTPRequest *request, const char *raw, 
 
     // =====================================================
 
+    ret.method = ret.__raw;
     char *tmp = memchr(ret.__raw, ' ', rawsize);
     if (!tmp) goto badrequest;
     *tmp = '\0';
-    ret.method = ret.__raw;
+    ret.methodsize = tmp - ret.method + 1;
     
     if (isoutofbound(++tmp, ret.__raw, rawsize)) goto badrequest;
 
@@ -30,6 +31,7 @@ parseHTTPrequesterror_t parseHTTPrequest(HTTPRequest *request, const char *raw, 
     tmp = memchr(tmp, ' ', rawsize - (tmp - ret.__raw));
     if (!tmp) goto badrequest;
     *tmp = '\0';
+    ret.urlsize = tmp - ret.url + 1;
     
     if (isoutofbound(++tmp, ret.__raw, rawsize)) goto badrequest;
 
@@ -37,6 +39,7 @@ parseHTTPrequesterror_t parseHTTPrequest(HTTPRequest *request, const char *raw, 
     tmp = memchr(tmp, '\r', rawsize - (tmp - ret.__raw));
     if (!tmp) goto badrequest;
     *tmp = '\0';
+    ret.versionsize = tmp - ret.version + 1;
 
     if (isoutofbound(++tmp, ret.__raw, rawsize) || *tmp != '\n') goto badrequest;
     if (isoutofbound(++tmp, ret.__raw, rawsize)) goto badrequest;
@@ -47,12 +50,15 @@ parseHTTPrequesterror_t parseHTTPrequest(HTTPRequest *request, const char *raw, 
     {
         const char *hname;
         const char *hvalue;
+        size_t hnamesize;
+        size_t hvaluesize;
         while (*tmp != '\r')
         {
             hname = tmp;
             tmp = memchr(tmp, ':', rawsize - (tmp - ret.__raw));
             if (!tmp) goto badrequest;
             *tmp = '\0';
+            hnamesize = tmp - hname + 1;
 
             if (isoutofbound(++tmp, ret.__raw, rawsize) || *tmp != ' ') goto badrequest;
             if (isoutofbound(++tmp, ret.__raw, rawsize)) goto badrequest;
@@ -61,6 +67,7 @@ parseHTTPrequesterror_t parseHTTPrequest(HTTPRequest *request, const char *raw, 
             tmp = memchr(tmp, '\r', rawsize - (tmp - ret.__raw));
             if (!tmp) goto badrequest;
             *tmp = '\0';
+            hvaluesize = tmp - hvalue + 1;
 
             if (isoutofbound(++tmp, ret.__raw, rawsize) || *tmp != '\n') goto badrequest;
             if (isoutofbound(++tmp, ret.__raw, rawsize)) goto badrequest;
@@ -71,7 +78,13 @@ parseHTTPrequesterror_t parseHTTPrequest(HTTPRequest *request, const char *raw, 
                 ret.headers = new_headers;
             }
 
-            ret.headers[ret.headerscount++] = (HTTPHeader){ .name = hname, .value = hvalue };
+            ret.headers[ret.headerscount++] = (HTTPHeader)
+            {
+                .name = hname,
+                .namesize = hnamesize,
+                .value = hvalue,
+                .valuesize = hvaluesize
+            };
         }
     }
 

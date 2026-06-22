@@ -71,4 +71,6 @@ bool formatstr(char **str, size_t *size, const char *format, ...);
 
 bool isoutofbound(const void *inbuffptr, const void *onbuffptr, size_t buffsize);
 
+bool memfcmp(const void *data1, size_t size1, const void *data2, size_t size2);
+
 #endif

@@ -6,7 +6,10 @@
 struct HTTPHeader
 {
     const char *name;
+    size_t namesize;
+
     const char *value;
+    size_t valuesize;
 } typedef HTTPHeader;
 
 struct HTTPRequest
@@ -16,6 +19,9 @@ struct HTTPRequest
     const char *method;
     const char *url;
     const char *version;
+    size_t methodsize;
+    size_t urlsize;
+    size_t versionsize;
 
     HTTPHeader *headers;
     size_t headerscount;

@@ -157,3 +157,13 @@ bool formatstr(char **str, size_t *size, const char *format, ...)
 
 bool isoutofbound(const void *inbuffptr, const void *onbuffptr, size_t buffsize)
 { return inbuffptr - onbuffptr >= buffsize || inbuffptr < onbuffptr; }
+
+bool memfcmp(const void *data1, size_t size1, const void *data2, size_t size2)
+{
+    if (size1 != size2) return false;
+    if (!size1) return true;
+
+    for (size_t i = 0; i < size1; i++) if (((const char *)data1)[i] != ((const char *)data2)[i]) return false;
+
+    return true;
+}
