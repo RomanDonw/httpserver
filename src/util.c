@@ -114,15 +114,6 @@ bool fullreadfile(char **str, size_t *size, const char *filepath)
         sz += readblocks;
     }
 
-    // expand buffer to add zero string terminator byte to end of buffer.
-    {
-        char *new_ret = realloc(ret, sz + 1);
-        if (!new_ret) goto errorquit;
-        ret = new_ret;
-    }
-
-    ret[sz++] = '\0';
-
     fclose(f);
     *str = ret;
     if (size) *size = sz;
