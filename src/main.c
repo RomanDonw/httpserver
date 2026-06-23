@@ -169,7 +169,15 @@ int main(int argc, char **argv)
             sendresp_intrserverr(cl);
             goto closeconn;
         }
-        if (!data) { puts("No request data available."); sendresp_badrequest(cl); goto closeconn; }
+        if (!data)
+        {
+            puts("No request data available (request timeout).");
+            const char resp[] = "HTTP/1.0 408 Request Timeout\r\n\r\n";
+            socket_send(cl, resp, sizeof(resp) - 1, NULL, SOCKET_SEND_NOFLAGS);
+            goto closeconn;
+        }
+
+        // =============================================================================
 
         HTTPRequest req;
         perr = parseHTTPrequest(&req, data, datasize);
