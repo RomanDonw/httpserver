@@ -5,6 +5,12 @@
             :root {
                 color-scheme: light;
             }
+
+            form {
+                border-style: inset;
+                border-width: 1px;
+                padding: 5px;
+            }
         </style>
     </head>
 
@@ -16,20 +22,20 @@
         This is an example web page. <br> <br>
         It works! <br> <br>
 
+        <a href="/serverinfo">Server local info</a> <br> <br>
+
         <form method=POST action="/postdata">
-            <label for="field">Text: </label>
-            <input type=input name="text"> <br> <br>
+            Text: <input type=input name="text"> <br> <br>
             
             <input type=submit value="Submit data">
-        </from>
+        </form>
 
         <hr>
 
         Page theme:
-        <div id="themeselector">
+        <span id="themeselector">
             <input type=checkbox id="checkbox"> <span id="text"></span>
-        </div>
-
+        </span>
         
         <script>
             const rootelement = document.querySelector(":root");
