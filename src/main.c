@@ -48,12 +48,13 @@ int main(int argc, char **argv)
     IPv4Address addr = IPV4ADDR_LOOPBACK;
     char *addrstr = "127.0.0.1";
     unsigned short port = 80;
+    unsigned char backlog = 4;
 
     if ((err = libsocket_startup(NULL)) != SocketError_Success) herr_libsocket(err);
     
     {
         int p;
-        while ((p = getopt(argc, argv, "a:p:")) != -1)
+        while ((p = getopt(argc, argv, "a:p:b:")) != -1)
         {
             switch (p)
             {
@@ -69,6 +70,10 @@ int main(int argc, char **argv)
                 case 'p':
                     if (sscanf(optarg, "%hu", &port) < 1) herr_parsearg("-p");
                     break;
+
+                case 'b':
+                    if (sscanf(optarg, "%hhu", &backlog) < 1) herr_parsearg("-b");
+                    if (!backlog) { puts("Backlog queue length can't be equal to zero. Allowed values: 1 - 255."); return 1; }
             }
         }
     }
@@ -86,9 +91,9 @@ int main(int argc, char **argv)
     CHECKSOCKERR(err, socket_setnonblocking(serv, true));
 
     CHECKSOCKERR(err, socket_bind(serv, &saddr, sizeof(saddr)));
-    CHECKSOCKERR(err, socket_listen(serv, 8));
+    CHECKSOCKERR(err, socket_listen(serv, backlog));
 
-    printf("Started HTTP 1.0 server at %s:%hu.\n\n", addrstr, port);
+    printf("Started HTTP 1.0 server at %s:%hu (backlog queue length: %hhu).\n\n", addrstr, port, backlog);
 
     // =============================================================================
 
@@ -142,7 +147,7 @@ int main(int argc, char **argv)
 
         // =============================================================================
 
-        recvres = recvallwithtimeout(cl, (void **)&data, &datasize, 50 * MONOTIME_MILLISECOND, 10 * MONOTIME_SECOND);
+        recvres = recvallwithtimeout(cl, (void **)&data, &datasize, 50 * MONOTIME_MILLISECOND, 10 * 50 * MONOTIME_MILLISECOND);
         if (recvres.type != RECVALL_NOERROR)
         {
             switch (recvres.type)
