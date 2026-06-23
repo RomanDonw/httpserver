@@ -59,7 +59,7 @@ int main(int argc, char **argv)
             switch (p)
             {
                 case 'a':
-                    if ((err = socket_parseaddr(&addr, SocketAddressFamily_IPv4, optarg)) != SocketError_Success)
+                    if ((err = socket_parseipaddr(&addr, SocketAddressFamily_IPv4, optarg)) != SocketError_Success)
                     {
                         if (err == SocketError_ParsingAddressFailed) herr_parsearg("-a");
                         else herr_libsocket(err);
@@ -83,7 +83,7 @@ int main(int argc, char **argv)
     if (!fullreadfile(&page, &pagesize, "res/page.html")) { puts("Error reading \"res/page.html\" file."); return 1; }
 
     SocketIPv4Address saddr;
-    CHECKSOCKERR(err, socket_packsockaddr(&saddr, SocketAddressFamily_IPv4, &addr, port));
+    CHECKSOCKERR(err, socket_packsockipaddr(&saddr, SocketAddressFamily_IPv4, &addr, port));
 
     Socket *serv;
     CHECKSOCKERR(err, socket_open(&serv, SocketAddressFamily_IPv4, SocketType_Stream, SocketProtocol_TCP));
@@ -128,7 +128,7 @@ int main(int argc, char **argv)
         }
 
         // unpack IP and port from SocketAddress structure.
-        if ((err = socket_unpacksockaddr(&saddr, SocketAddressFamily_IPv4, &addr, &port)) != SocketError_Success)
+        if ((err = socket_unpacksockipaddr(&saddr, SocketAddressFamily_IPv4, &addr, &port)) != SocketError_Success)
         {
             printf("Error unpacking socket address: %s.\n", socket_strerror(err));
             sendresp_intrserverr(cl);
@@ -136,7 +136,7 @@ int main(int argc, char **argv)
         }
 
         // output client address to console.
-        if ((err = socket_addrtostr(&addr, SocketAddressFamily_IPv4, ip4str, sizeof(ip4str))) != SocketError_Success)
+        if ((err = socket_ipaddrtostr(&addr, SocketAddressFamily_IPv4, ip4str, sizeof(ip4str))) != SocketError_Success)
         {
             printf("Error converting IPv4 binary representation to string equivalent: %s.\n", socket_strerror(err));
             sendresp_intrserverr(cl);
