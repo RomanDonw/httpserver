@@ -50,7 +50,7 @@ int main(int argc, char **argv)
     unsigned short port = 80;
     unsigned char backlog = 4;
 
-    if ((err = libsocket_startup(NULL)) != SocketError_Success) herr_libsocket(err);
+    if ((err = libsocket_startup(NULL, NULL)) != SocketError_Success) herr_libsocket(err);
     
     {
         int p;
