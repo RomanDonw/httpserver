@@ -7,15 +7,16 @@
 #include <string.h>
 #include <signal.h>
 #include <libmonotime.h>
+#include <libnthread.h>
 
 #include "request.h"
 #include "util.h"
 
 // herr_... - error handler prefix.
-void herr_libsocket(SocketError err) { fprintf(stderr, "libsocket error: %s.\n", socket_strerror(err)); exit(EXIT_FAILURE); }
+void herr_libsocket(NError err) { fprintf(stderr, "libsocket error: %s.\n", n_strerror(err)); exit(EXIT_FAILURE); }
 void herr_parsearg(const char *pname) { fprintf(stderr, "Error parsing %s parameter value.\n", pname); exit(EXIT_FAILURE); }
 
-#define CHECKSOCKERR(err_var, code) { if ((err_var = (code)) != SocketError_Success) herr_libsocket(err_var); }
+#define CHECKSOCKERR(err_var, code) { if ((err_var = (code)) != NError_Success) herr_libsocket(err_var); }
 
 void sendresp_badrequest(const Socket *socket);
 void sendresp_intrserverr(const Socket *socket);
@@ -44,13 +45,16 @@ int main(int argc, char **argv)
 
     // =============================================================================
 
-    SocketError err;
+    NError err;
     IPv4Address addr = IPV4ADDR_LOOPBACK;
     char *addrstr = "127.0.0.1";
     unsigned short port = 80;
     unsigned char backlog = 4;
 
-    if ((err = libsocket_startup(NULL, NULL)) != SocketError_Success) herr_libsocket(err);
+    if ((err = libnthread_startup(NULL)) != NError_Success)
+    { fprintf(stderr, "libnthread startup error: %s\n", n_strerror(err)); return 1; }
+
+    if ((err = libsocket_startup(NULL, NULL)) != NError_Success) herr_libsocket(err);
     
     {
         int p;
@@ -59,9 +63,9 @@ int main(int argc, char **argv)
             switch (p)
             {
                 case 'a':
-                    if ((err = socket_parseipaddr(&addr, SocketAddressFamily_IPv4, optarg)) != SocketError_Success)
+                    if ((err = socket_parseipaddr(&addr, SocketAddressFamily_IPv4, optarg)) != NError_Success)
                     {
-                        if (err == SocketError_ParsingAddressFailed) herr_parsearg("-a");
+                        if (err == NError_ParsingAddressFailed) herr_parsearg("-a");
                         else herr_libsocket(err);
                     }
                     addrstr = optarg;
@@ -110,10 +114,10 @@ int main(int argc, char **argv)
     {
         // accept connection & store client socket address.
         saddrsz = sizeof(saddr);
-        if ((err = socket_accept(&cl, serv, &saddr, &saddrsz)) != SocketError_Success)
+        if ((err = socket_accept(&cl, serv, &saddr, &saddrsz)) != NError_Success)
         {
-            if (err == SocketError_WouldBlock) continue;
-            printf("Accepting connection error: %s.\n", socket_strerror(err));
+            if (err == NError_WouldBlock) continue;
+            printf("Accepting connection error: %s.\n", n_strerror(err));
 
             if (accepterrorscounter++ < 5) continue;
             puts("Too many errors raised at the same moment. Shutting down the server.");
@@ -128,17 +132,17 @@ int main(int argc, char **argv)
         }
 
         // unpack IP and port from SocketAddress structure.
-        if ((err = socket_unpacksockipaddr(&saddr, SocketAddressFamily_IPv4, &addr, &port)) != SocketError_Success)
+        if ((err = socket_unpacksockipaddr(&saddr, SocketAddressFamily_IPv4, &addr, &port)) != NError_Success)
         {
-            printf("Error unpacking socket address: %s.\n", socket_strerror(err));
+            printf("Error unpacking socket address: %s.\n", n_strerror(err));
             sendresp_intrserverr(cl);
             goto closeconn;
         }
 
         // output client address to console.
-        if ((err = socket_ipaddrtostr(&addr, SocketAddressFamily_IPv4, ip4str, sizeof(ip4str))) != SocketError_Success)
+        if ((err = socket_ipaddrtostr(&addr, SocketAddressFamily_IPv4, ip4str, sizeof(ip4str))) != NError_Success)
         {
-            printf("Error converting IPv4 binary representation to string equivalent: %s.\n", socket_strerror(err));
+            printf("Error converting IPv4 binary representation to string equivalent: %s.\n", n_strerror(err));
             sendresp_intrserverr(cl);
             goto closeconn;
         }
@@ -152,8 +156,8 @@ int main(int argc, char **argv)
         {
             switch (recvres.type)
             {
-                case RECVALL_SOCKETERROR:
-                    printf("Occured socket-related error while reading request: %s.", socket_strerror(recvres.error.socket));
+                case RECVALL_NError:
+                    printf("Occured socket-related error while reading request: %s.", n_strerror(recvres.error.generic));
                     break;
 
                 case RECVALL_OWNERROR:
@@ -276,6 +280,8 @@ int main(int argc, char **argv)
     puts("\nHTTP 1.0 server stopped successfully.");
 
     CHECKSOCKERR(err, libsocket_cleanup());
+
+    CHECKSOCKERR(err, libnthread_cleanup());
 
     return 0;
 }

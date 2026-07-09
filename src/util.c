@@ -7,7 +7,7 @@
 
 recvallresult recvallwithtimeout(const Socket *socket, void **data, size_t *size, monotime_t singlemaxwaittime, monotime_t fullmaxwaittime)
 {
-    SocketError err;
+    NError err;
     char *ret = NULL;
     size_t retsz = 0;
 
@@ -24,20 +24,20 @@ recvallresult recvallwithtimeout(const Socket *socket, void **data, size_t *size
 
         if (!socket_isnonblocking(socket))
         {
-            if ((err = socket_getreadablebytes(socket, &availsz)) != SocketError_Success) goto errorquit_socket;
+            if ((err = socket_getreadablebytes(socket, &availsz)) != NError_Success) goto errorquit_socket;
             if (!availsz) continue;
         }
 
-        if ((err = socket_recv(socket, buff, sizeof(buff), &availsz, SOCKET_RECV_NOFLAGS)) != SocketError_Success)
+        if ((err = socket_recv(socket, buff, sizeof(buff), &availsz, SOCKET_RECV_NOFLAGS)) != NError_Success)
         {
-            if (err == SocketError_WouldBlock) continue;
+            if (err == NError_WouldBlock) continue;
             goto errorquit_socket;
         }
-        if (!availsz) { err = SocketError_ConnectionReset; goto errorquit_socket; }
+        if (!availsz) { err = NError_ConnectionReset; goto errorquit_socket; }
 
         {
             void *new_ret = realloc(ret, retsz + availsz);
-            if (!new_ret) { err = SocketError_MemoryAllocationFailed; goto errorquit_socket; }
+            if (!new_ret) { err = NError_MemoryAllocationFailed; goto errorquit_socket; }
             ret = new_ret;
         }
         memcpy(ret + retsz, buff, availsz);
@@ -52,7 +52,7 @@ recvallresult recvallwithtimeout(const Socket *socket, void **data, size_t *size
 
     errorquit_socket:
         if (ret) free(ret);
-    return (recvallresult){ .type = RECVALL_SOCKETERROR, .error.socket = err };
+    return (recvallresult){ .type = RECVALL_NError, .error.generic = err };
 
     errorquit_monotime:
         if (ret) free(ret);

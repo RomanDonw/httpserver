@@ -27,7 +27,7 @@ void *realloc_s(void *ptr, size_t size); // can`t return NULL.
 enum recvallresulttype
 {
     RECVALL_NOERROR,
-    RECVALL_SOCKETERROR,
+    RECVALL_NError,
     RECVALL_OWNERROR
 } typedef recvallresulttype;
 
@@ -41,7 +41,7 @@ struct recvallresult
     recvallresulttype type;
     union
     {
-        SocketError socket;
+        NError generic;
         recvallerror own;
     } error;
 } typedef recvallresult;
