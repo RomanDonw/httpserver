@@ -89,29 +89,26 @@ void *realloc_s(void *ptr, size_t size)
 
 bool fullreadfile(char **str, size_t *size, const char *filepath)
 {
-    const size_t BUFFER_SIZE = 512;
-
     char *ret = NULL;
     size_t sz = 0;
 
     FILE *f = fopen(filepath, "r");
     if (!f) return false;
 
-    char buffer[BUFFER_SIZE];
+    char buffer[512];
 
-    size_t readblocks;
-    while ((readblocks = fread(buffer, 1, BUFFER_SIZE, f)))
+    size_t readbytes;
+    while ((readbytes = fread(buffer, 1, sizeof(buffer), f)))
     {
-        // allocate memory
         {
-            char *new_ret = realloc(ret, sz + readblocks);
+            char *new_ret = realloc(ret, sz + readbytes);
             if (!new_ret) goto errorquit;
             ret = new_ret;
         }
 
-        memcpy(ret + sz, buffer, readblocks);
+        memcpy(ret + sz, buffer, readbytes);
 
-        sz += readblocks;
+        sz += readbytes;
     }
 
     fclose(f);
@@ -149,18 +146,5 @@ bool formatstr(char **str, size_t *size, const char *format, ...)
 
     *str = ret;
     if (size) *size = sz;
-    return true;
-}
-
-bool isoutofbound(const void *inbuffptr, const void *onbuffptr, size_t buffsize)
-{ return inbuffptr - onbuffptr >= buffsize || inbuffptr < onbuffptr; }
-
-bool memfcmp(const void *data1, size_t size1, const void *data2, size_t size2)
-{
-    if (size1 != size2) return false;
-    if (!size1) return true;
-
-    for (size_t i = 0; i < size1; i++) if (((const char *)data1)[i] != ((const char *)data2)[i]) return false;
-
     return true;
 }

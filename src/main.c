@@ -22,7 +22,7 @@ void sendresp_badrequest(const Socket *socket);
 void sendresp_intrserverr(const Socket *socket);
 
 // 'volatile' need to prevent 'ignoring' on optimization.
-volatile bool working = true;
+static volatile bool working = true;
 
 void handlesig(int sig)
 {
@@ -34,6 +34,14 @@ void handlesig(int sig)
             working = false;
             break;
     }
+}
+
+const char *getcurrGMTdateforHTTP(void)
+{
+    static char datestrbuff[128];
+    time_t now = time(NULL);
+    if (!strftime(datestrbuff, sizeof(datestrbuff), "%a, %d %b %Y %H:%M:%S GMT", gmtime(&now))) datestrbuff[0] = '\0';
+    return datestrbuff;
 }
 
 int main(int argc, char **argv)
@@ -147,7 +155,7 @@ int main(int argc, char **argv)
             goto closeconn;
         }
 
-        printf("Accepted client %s:%hu.\n", ip4str, port);
+        printf("Accepted client %s:%hu at %s.\n", ip4str, port, getcurrGMTdateforHTTP());
 
         // =============================================================================
 
@@ -241,18 +249,29 @@ int main(int argc, char **argv)
             char *response = NULL;
             size_t responsesz = 0;
 
-            if (!formatstr(&response, &responsesz, "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: %zu\r\nConnection: close\r\n\r\n", pagesize - 1))
-            { puts("Error formatting response."); sendresp_intrserverr(cl); goto finishconn; }
+            if (!formatstr(&response, &responsesz,
+                    "HTTP/1.1 200 OK\r\n"
+                    "Content-Type: text/html\r\n"
+                    "Content-Length: %zu\r\n"
+                    "Connection: close\r\n"
+                    "Date: %s\r\n"
+                    "Server: Test HTTP/1.1 Pure C Server\r\n"
+                    "\r\n",
+                pagesize, getcurrGMTdateforHTTP()))
+            {
+                puts("Error formatting response.");
+                sendresp_intrserverr(cl);
+                goto finishconn;
+            }
 
             if (!memfcmp(req.method, req.methodsize, "HEAD", sizeof("HEAD")))
             {
                 {
-                    char *new_response = realloc(response, responsesz + pagesize - 1);
-                    if (!new_response) { puts("Not enough memory to complete building response."); sendresp_intrserverr(cl); goto finishconn; }
+                    char *new_response = realloc(response, (--responsesz) + pagesize);
+                    if (!new_response) { puts("Not enough memory to complete building response."); sendresp_intrserverr(cl); free(response); goto finishconn; }
                     response = new_response;
                 }
 
-                responsesz--;
                 memcpy(response + responsesz, page, pagesize);
                 responsesz += pagesize;
             }
@@ -261,6 +280,8 @@ int main(int argc, char **argv)
 
             free(response);
         }
+
+        printf("Finished handling request from %s:%hu at %s.\n", ip4str, port, getcurrGMTdateforHTTP());
 
         // ============================================================================
 
