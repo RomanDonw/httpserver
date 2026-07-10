@@ -16,7 +16,7 @@
 void herr_libsocket(NError err) { fprintf(stderr, "libsocket error: %s.\n", n_strerror(err)); exit(EXIT_FAILURE); }
 void herr_parsearg(const char *pname) { fprintf(stderr, "Error parsing %s parameter value.\n", pname); exit(EXIT_FAILURE); }
 
-#define CHECKSOCKERR(err_var, code) { if ((err_var = (code)) != NError_Success) herr_libsocket(err_var); }
+#define CHECKSOCKERR(err_var, code) { if (((err_var) = (code)) != NError_Success) herr_libsocket(err_var); }
 
 void sendresp_badrequest(const Socket *socket);
 void sendresp_intrserverr(const Socket *socket);
@@ -97,7 +97,7 @@ int main(int argc, char **argv)
     CHECKSOCKERR(err, socket_bind(serv, &saddr, sizeof(saddr)));
     CHECKSOCKERR(err, socket_listen(serv, backlog));
 
-    printf("Started HTTP 1.0 server at %s:%hu (backlog queue length: %hhu).\n\n", addrstr, port, backlog);
+    printf("Started HTTP 1.1 server at %s:%hu (backlog queue length: %hhu).\n\n", addrstr, port, backlog);
 
     // =============================================================================
 
@@ -181,7 +181,7 @@ int main(int argc, char **argv)
         if (!data)
         {
             puts("No request data available (request timeout).");
-            const char resp[] = "HTTP/1.0 408 Request Timeout\r\n\r\n";
+            const char resp[] = "HTTP/1.1 408 Request Timeout\r\nConnection: close\r\n\r\n";
             socket_send(cl, resp, sizeof(resp) - 1, NULL, SOCKET_SEND_NOFLAGS);
             goto closeconn;
         }
@@ -221,10 +221,10 @@ int main(int argc, char **argv)
 
         printf("HTTP request body size: %zu.\n", req.bodysize);
 
-        if (!memfcmp(req.version, req.versionsize, "HTTP/1.0", sizeof("HTTP/1.0")) && !memfcmp(req.version, req.versionsize, "HTTP/1.1", sizeof("HTTP/1.1")))
+        if (!memfcmp(req.version, req.versionsize, "HTTP/1.1", sizeof("HTTP/1.1")))
         {
             puts("Request HTTP version not supported.");
-            const char resp[] = "HTTP/1.0 505 HTTP Version Not Supported\r\n\r\n";
+            const char resp[] = "HTTP/1.1 505 HTTP Version Not Supported\r\nConnection: close\r\n\r\n";
             socket_send(cl, resp, sizeof(resp) - 1, NULL, SOCKET_SEND_NOFLAGS);
             goto finishconn;
         }
@@ -232,7 +232,7 @@ int main(int argc, char **argv)
         if (!memfcmp(req.method, req.methodsize, "GET", sizeof("GET")) && !memfcmp(req.method, req.methodsize, "HEAD", sizeof("HEAD")))
         {
             puts("Request method not implemented.");
-            const char resp[] = "HTTP/1.0 501 Not Implemented\r\n\r\n";
+            const char resp[] = "HTTP/1.1 501 Not Implemented\r\nConnection: close\r\n\r\n";
             socket_send(cl, resp, sizeof(resp) - 1, NULL, SOCKET_SEND_NOFLAGS);
             goto finishconn;
         }
@@ -241,7 +241,7 @@ int main(int argc, char **argv)
             char *response = NULL;
             size_t responsesz = 0;
 
-            if (!formatstr(&response, &responsesz, "HTTP/1.0 200 OK\r\nContent-Type: text/html\r\nContent-Length: %zu\r\nConnection: close\r\n\r\n", pagesize - 1))
+            if (!formatstr(&response, &responsesz, "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: %zu\r\nConnection: close\r\n\r\n", pagesize - 1))
             { puts("Error formatting response."); sendresp_intrserverr(cl); goto finishconn; }
 
             if (!memfcmp(req.method, req.methodsize, "HEAD", sizeof("HEAD")))
@@ -277,7 +277,7 @@ int main(int argc, char **argv)
     free(page);
 
     CHECKSOCKERR(err, socket_close(serv));
-    puts("\nHTTP 1.0 server stopped successfully.");
+    puts("\nHTTP 1.1 server stopped successfully.");
 
     CHECKSOCKERR(err, libsocket_cleanup());
 
@@ -288,12 +288,12 @@ int main(int argc, char **argv)
 
 void sendresp_badrequest(const Socket *socket)
 {
-    static const char response[] = "HTTP/1.0 400 Bad Request\r\n\r\n";
+    static const char response[] = "HTTP/1.1 400 Bad Request\r\nConnection: close\r\n";
     socket_send(socket, response, sizeof(response) - 1, NULL, SOCKET_SEND_NOFLAGS);
 }
 
 void sendresp_intrserverr(const Socket *socket)
 {
-    static const char response[] = "HTTP/1.0 500 Internal Server Error\r\n\r\n";
+    static const char response[] = "HTTP/1.1 500 Internal Server Error\r\nConnection: close\r\n\r\n";
     socket_send(socket, response, sizeof(response) - 1, NULL, SOCKET_SEND_NOFLAGS);
 }
