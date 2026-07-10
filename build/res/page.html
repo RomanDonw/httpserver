@@ -41,13 +41,20 @@
             const rootelement = document.querySelector(":root");
             const themeselector_checkbox = document.querySelector("#themeselector input[type=checkbox]#checkbox");
             const themeselector_textelement = document.querySelector("#themeselector #text");
-            
-            const updatetheme = themeselector.onclick = () =>
+
+            function settheme(isdark, updatecheckboxstate, setinlocalstorage)
             {
-                rootelement.style.colorScheme = themeselector_checkbox.checked ? "dark" : "light";
-                themeselector_textelement.innerHTML = themeselector_checkbox.checked ? "Dark" : "Light";
-            };
-            updatetheme();
+                rootelement.style.colorScheme = isdark ? "dark" : "light";
+                themeselector_textelement.innerHTML = isdark ? "Dark" : "Light";
+                if (updatecheckboxstate) themeselector_checkbox.checked = isdark;
+                if (setinlocalstorage) localStorage.setItem("theme", isdark);
+            }
+
+            const savedtheme = localStorage.getItem("theme");
+            if (savedtheme !== null) settheme(savedtheme, true, false);
+            else settheme(false, true, false);
+            
+            themeselector.onclick = () => { settheme(themeselector_checkbox.checked, false, true); };
         </script>
     </body>
 </html>
