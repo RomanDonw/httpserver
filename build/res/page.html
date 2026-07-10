@@ -47,12 +47,12 @@
                 rootelement.style.colorScheme = isdark ? "dark" : "light";
                 themeselector_textelement.innerHTML = isdark ? "Dark" : "Light";
                 if (updatecheckboxstate) themeselector_checkbox.checked = isdark;
-                if (setinlocalstorage) localStorage.setItem("theme", isdark);
+                if (setinlocalstorage) localStorage.setItem("theme", isdark ? "dark" : "light");
             }
 
             const savedtheme = localStorage.getItem("theme");
-            if (savedtheme !== null) settheme(savedtheme, true, false);
-            else settheme(false, true, false);
+            if (savedtheme !== null) settheme(savedtheme === "dark" ? true : false, true, false);
+            else settheme(false, true, true);
             
             themeselector.onclick = () => { settheme(themeselector_checkbox.checked, false, true); };
         </script>
