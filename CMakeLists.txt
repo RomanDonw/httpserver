@@ -29,8 +29,8 @@ find_package(PkgConfig REQUIRED)
 set(PKG_CONFIG_USE_CMAKE_PREFIX_PATH ON)
 set(ENV{PKG_CONFIG} "pkg-config --static")
 
-find_package(libsocket REQUIRED)
-target_link_libraries(${PROJECT_NAME} PRIVATE libsocket::socket)
+find_package(libnsocket REQUIRED)
+target_link_libraries(${PROJECT_NAME} PRIVATE libnsocket::nsocket)
 
 find_package(libmonotime REQUIRED)
 target_link_libraries(${PROJECT_NAME} PRIVATE libmonotime::monotime)

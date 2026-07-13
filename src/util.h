@@ -4,7 +4,7 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <libmonotime.h>
-#include <libsocket.h>
+#include <libnsocket.h>
 #include <stdbool.h>
 
 #if defined(_MSC_VER) && (_MSC_VER < 1300)
@@ -52,7 +52,7 @@ struct recvallresult
     no changes *data & *size on error.
 */
 
-recvallresult recvallwithtimeout(const Socket *socket, void **data, size_t *size, monotime_t singlemaxwaittime, monotime_t fullmaxwaittime);
+recvallresult recvallwithtimeout(const NSocket *socket, void **data, size_t *size, monotime_t singlemaxwaittime, monotime_t fullmaxwaittime);
 
 /*
 Returns an allocated block of memory (string) that contains read specified file content.

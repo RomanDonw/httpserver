@@ -5,7 +5,7 @@
 #include <string.h>
 #include <stdarg.h>
 
-recvallresult recvallwithtimeout(const Socket *socket, void **data, size_t *size, monotime_t singlemaxwaittime, monotime_t fullmaxwaittime)
+recvallresult recvallwithtimeout(const NSocket *socket, void **data, size_t *size, monotime_t singlemaxwaittime, monotime_t fullmaxwaittime)
 {
     NError err;
     char *ret = NULL;
@@ -22,13 +22,13 @@ recvallresult recvallwithtimeout(const Socket *socket, void **data, size_t *size
         if (!monotime_now(&currtime)) goto errorquit_monotime;
         if (currtime >= lastrecv + singlemaxwaittime || currtime >= starttime + fullmaxwaittime) break;
 
-        if (!socket_isnonblocking(socket))
+        if (!nsocket_isnonblocking(socket))
         {
-            if ((err = socket_getreadablebytes(socket, &availsz)) != NError_Success) goto errorquit_socket;
+            if ((err = nsocket_getreadablebytes(socket, &availsz)) != NError_Success) goto errorquit_socket;
             if (!availsz) continue;
         }
 
-        if ((err = socket_recv(socket, buff, sizeof(buff), &availsz, SOCKET_RECV_NOFLAGS)) != NError_Success)
+        if ((err = nsocket_recv(socket, buff, sizeof(buff), &availsz, NSOCKET_RECV_NOFLAGS)) != NError_Success)
         {
             if (err == NError_WouldBlock) continue;
             goto errorquit_socket;

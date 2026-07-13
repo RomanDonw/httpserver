@@ -1,6 +1,5 @@
 #include <getopt.h>
 #include <stdio.h>
-#include <libsocket.h>
 #include <stdlib.h>
 #include <stdbool.h>
 #include <time.h>
@@ -8,6 +7,7 @@
 #include <signal.h>
 #include <libmonotime.h>
 #include <libnthread.h>
+#include <libnsocket.h>
 
 #include "request.h"
 #include "util.h"
@@ -18,8 +18,8 @@ void herr_parsearg(const char *pname) { fprintf(stderr, "Error parsing %s parame
 
 #define CHECKSOCKERR(err_var, code) { if (((err_var) = (code)) != NError_Success) herr_libsocket(err_var); }
 
-void sendresp_badrequest(const Socket *socket);
-void sendresp_intrserverr(const Socket *socket);
+void sendresp_badrequest(const NSocket *socket);
+void sendresp_intrserverr(const NSocket *socket);
 
 // 'volatile' need to prevent 'ignoring' on optimization.
 static volatile bool working = true;
@@ -62,7 +62,7 @@ int main(int argc, char **argv)
     if ((err = libnthread_startup(NULL)) != NError_Success)
     { fprintf(stderr, "libnthread startup error: %s\n", n_strerror(err)); return 1; }
 
-    if ((err = libsocket_startup(NULL, NULL)) != NError_Success) herr_libsocket(err);
+    if ((err = libnsocket_startup(NULL, NULL)) != NError_Success) herr_libsocket(err);
     
     {
         int p;
@@ -71,7 +71,7 @@ int main(int argc, char **argv)
             switch (p)
             {
                 case 'a':
-                    if ((err = socket_parseipaddr(&addr, SocketAddressFamily_IPv4, optarg)) != NError_Success)
+                    if ((err = nsocket_parseipaddr(&addr, NSocketAddressFamily_IPv4, optarg)) != NError_Success)
                     {
                         if (err == NError_ParsingAddressFailed) herr_parsearg("-a");
                         else herr_libsocket(err);
@@ -94,23 +94,23 @@ int main(int argc, char **argv)
     size_t pagesize = 0;
     if (!fullreadfile(&page, &pagesize, "res/page.html")) { puts("Error reading \"res/page.html\" file."); return 1; }
 
-    SocketIPv4Address saddr;
-    CHECKSOCKERR(err, socket_packsockipaddr(&saddr, SocketAddressFamily_IPv4, &addr, port));
+    NSocketIPv4Address saddr;
+    CHECKSOCKERR(err, nsocket_packsockipaddr(&saddr, NSocketAddressFamily_IPv4, &addr, port));
 
-    Socket *serv;
-    CHECKSOCKERR(err, socket_open(&serv, SocketAddressFamily_IPv4, SocketType_Stream, SocketProtocol_TCP));
+    NSocket *serv;
+    CHECKSOCKERR(err, nsocket_open(&serv, NSocketAddressFamily_IPv4, NSocketType_Stream, NSocketProtocol_TCP));
 
-    CHECKSOCKERR(err, socket_setnonblocking(serv, true));
+    CHECKSOCKERR(err, nsocket_setnonblocking(serv, true));
 
-    CHECKSOCKERR(err, socket_bind(serv, &saddr, sizeof(saddr)));
-    CHECKSOCKERR(err, socket_listen(serv, backlog));
+    CHECKSOCKERR(err, nsocket_bind(serv, &saddr, sizeof(saddr)));
+    CHECKSOCKERR(err, nsocket_listen(serv, backlog));
 
     printf("Started HTTP 1.1 server at %s:%hu (backlog queue length: %hhu).\n\n", addrstr, port, backlog);
 
     // =============================================================================
 
     char ip4str[IPV4ADDRSTRSIZE];
-    Socket *cl;
+    NSocket *cl;
     socklen_t saddrsz;
     char *data = NULL;
     size_t datasize = 0;
@@ -122,7 +122,7 @@ int main(int argc, char **argv)
     {
         // accept connection & store client socket address.
         saddrsz = sizeof(saddr);
-        if ((err = socket_accept(&cl, serv, &saddr, &saddrsz)) != NError_Success)
+        if ((err = nsocket_accept(&cl, serv, &saddr, &saddrsz)) != NError_Success)
         {
             if (err == NError_WouldBlock) continue;
             printf("Accepting connection error: %s.\n", n_strerror(err));
@@ -139,8 +139,8 @@ int main(int argc, char **argv)
             goto closeconn;
         }
 
-        // unpack IP and port from SocketAddress structure.
-        if ((err = socket_unpacksockipaddr(&saddr, SocketAddressFamily_IPv4, &addr, &port)) != NError_Success)
+        // unpack IP and port from NSocketAddress structure.
+        if ((err = nsocket_unpacksockipaddr(&saddr, NSocketAddressFamily_IPv4, &addr, &port)) != NError_Success)
         {
             printf("Error unpacking socket address: %s.\n", n_strerror(err));
             sendresp_intrserverr(cl);
@@ -148,7 +148,7 @@ int main(int argc, char **argv)
         }
 
         // output client address to console.
-        if ((err = socket_ipaddrtostr(&addr, SocketAddressFamily_IPv4, ip4str, sizeof(ip4str))) != NError_Success)
+        if ((err = nsocket_ipaddrtostr(&addr, NSocketAddressFamily_IPv4, ip4str, sizeof(ip4str))) != NError_Success)
         {
             printf("Error converting IPv4 binary representation to string equivalent: %s.\n", n_strerror(err));
             sendresp_intrserverr(cl);
@@ -190,7 +190,7 @@ int main(int argc, char **argv)
         {
             puts("No request data available (request timeout).");
             const char resp[] = "HTTP/1.1 408 Request Timeout\r\nConnection: close\r\n\r\n";
-            socket_send(cl, resp, sizeof(resp) - 1, NULL, SOCKET_SEND_NOFLAGS);
+            nsocket_send(cl, resp, sizeof(resp) - 1, NULL, NSOCKET_SEND_NOFLAGS);
             goto closeconn;
         }
 
@@ -233,7 +233,7 @@ int main(int argc, char **argv)
         {
             puts("Request HTTP version not supported.");
             const char resp[] = "HTTP/1.1 505 HTTP Version Not Supported\r\nConnection: close\r\n\r\n";
-            socket_send(cl, resp, sizeof(resp) - 1, NULL, SOCKET_SEND_NOFLAGS);
+            nsocket_send(cl, resp, sizeof(resp) - 1, NULL, NSOCKET_SEND_NOFLAGS);
             goto finishconn;
         }
 
@@ -241,7 +241,7 @@ int main(int argc, char **argv)
         {
             puts("Request method not implemented.");
             const char resp[] = "HTTP/1.1 501 Not Implemented\r\nConnection: close\r\n\r\n";
-            socket_send(cl, resp, sizeof(resp) - 1, NULL, SOCKET_SEND_NOFLAGS);
+            nsocket_send(cl, resp, sizeof(resp) - 1, NULL, NSOCKET_SEND_NOFLAGS);
             goto finishconn;
         }
 
@@ -276,7 +276,7 @@ int main(int argc, char **argv)
                 responsesz += pagesize;
             }
 
-            socket_send(cl, response, responsesz, NULL, SOCKET_SEND_NOFLAGS);
+            nsocket_send(cl, response, responsesz, NULL, NSOCKET_SEND_NOFLAGS);
 
             free(response);
         }
@@ -289,7 +289,7 @@ int main(int argc, char **argv)
             freeHTTPrequest(&req);
             
         closeconn:
-            CHECKSOCKERR(err, socket_close(cl));
+            CHECKSOCKERR(err, nsocket_close(cl));
             printf("Closed connection with %s:%hu.\n\n", ip4str, port);
     }
 
@@ -297,24 +297,24 @@ int main(int argc, char **argv)
 
     free(page);
 
-    CHECKSOCKERR(err, socket_close(serv));
+    CHECKSOCKERR(err, nsocket_close(serv));
     puts("\nHTTP 1.1 server stopped successfully.");
 
-    CHECKSOCKERR(err, libsocket_cleanup());
+    CHECKSOCKERR(err, libnsocket_cleanup());
 
     CHECKSOCKERR(err, libnthread_cleanup());
 
     return 0;
 }
 
-void sendresp_badrequest(const Socket *socket)
+void sendresp_badrequest(const NSocket *socket)
 {
     static const char response[] = "HTTP/1.1 400 Bad Request\r\nConnection: close\r\n";
-    socket_send(socket, response, sizeof(response) - 1, NULL, SOCKET_SEND_NOFLAGS);
+    nsocket_send(socket, response, sizeof(response) - 1, NULL, NSOCKET_SEND_NOFLAGS);
 }
 
-void sendresp_intrserverr(const Socket *socket)
+void sendresp_intrserverr(const NSocket *socket)
 {
     static const char response[] = "HTTP/1.1 500 Internal Server Error\r\nConnection: close\r\n\r\n";
-    socket_send(socket, response, sizeof(response) - 1, NULL, SOCKET_SEND_NOFLAGS);
+    nsocket_send(socket, response, sizeof(response) - 1, NULL, NSOCKET_SEND_NOFLAGS);
 }
