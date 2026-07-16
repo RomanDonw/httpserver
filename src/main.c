@@ -40,7 +40,7 @@ const char *getcurrGMTdateforHTTP(void)
 {
     static char datestrbuff[128];
     time_t now = time(NULL);
-    if (!strftime(datestrbuff, sizeof(datestrbuff), "%a, %d %b %Y %H:%M:%S GMT", gmtime(&now))) datestrbuff[0] = '\0';
+    if (!strftime(datestrbuff, sizeof(datestrbuff), "%a, %d %b %Y %H:%M:%S UTC", gmtime(&now))) datestrbuff[0] = '\0';
     return datestrbuff;
 }
 
@@ -255,7 +255,7 @@ int main(int argc, char **argv)
                     "Content-Length: %zu\r\n"
                     "Connection: close\r\n"
                     "Date: %s\r\n"
-                    "Server: Test HTTP/1.1 Pure C Server\r\n"
+                    "Server: PureCHTTPServer/0.0\r\n"
                     "\r\n",
                 pagesize, getcurrGMTdateforHTTP()))
             {
