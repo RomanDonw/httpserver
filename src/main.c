@@ -13,10 +13,10 @@
 #include "util.h"
 
 // herr_... - error handler prefix.
-void herr_libsocket(NError err) { fprintf(stderr, "libsocket error: %s.\n", n_strerror(err)); exit(EXIT_FAILURE); }
+void herr_libnsocket(NError err) { fprintf(stderr, "libnsocket error: %s.\n", n_strerror(err)); exit(EXIT_FAILURE); }
 void herr_parsearg(const char *pname) { fprintf(stderr, "Error parsing %s parameter value.\n", pname); exit(EXIT_FAILURE); }
 
-#define CHECKSOCKERR(err_var, code) { if (((err_var) = (code)) != NError_Success) herr_libsocket(err_var); }
+#define CHECKSOCKERR(err_var, code) { if (((err_var) = (code)) != NError_Success) herr_libnsocket(err_var); }
 
 void sendresp_badrequest(const NSocket *socket);
 void sendresp_intrserverr(const NSocket *socket);
@@ -62,7 +62,7 @@ int main(int argc, char **argv)
     if ((err = libnthread_startup(NULL)) != NError_Success)
     { fprintf(stderr, "libnthread startup error: %s\n", n_strerror(err)); return 1; }
 
-    if ((err = libnsocket_startup(NULL, NULL)) != NError_Success) herr_libsocket(err);
+    if ((err = libnsocket_startup(NULL, NULL)) != NError_Success) herr_libnsocket(err);
     
     {
         int p;
@@ -74,7 +74,7 @@ int main(int argc, char **argv)
                     if ((err = nsocket_parseipaddr(&addr, NSocketAddressFamily_IPv4, optarg)) != NError_Success)
                     {
                         if (err == NError_ParsingAddressFailed) herr_parsearg("-a");
-                        else herr_libsocket(err);
+                        else herr_libnsocket(err);
                     }
                     addrstr = optarg;
                     break;
@@ -164,8 +164,8 @@ int main(int argc, char **argv)
         {
             switch (recvres.type)
             {
-                case RECVALL_NError:
-                    printf("Occured socket-related error while reading request: %s.", n_strerror(recvres.error.generic));
+                case RECVALL_NERROR:
+                    printf("Occured system- or socket- -related error while reading request: %s.", n_strerror(recvres.error.generic));
                     break;
 
                 case RECVALL_OWNERROR:

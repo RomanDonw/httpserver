@@ -24,20 +24,20 @@ recvallresult recvallwithtimeout(const NSocket *socket, void **data, size_t *siz
 
         if (!nsocket_isnonblocking(socket))
         {
-            if ((err = nsocket_getreadablebytes(socket, &availsz)) != NError_Success) goto errorquit_socket;
+            if ((err = nsocket_getreadablebytes(socket, &availsz)) != NError_Success) goto errorquit_nerror;
             if (!availsz) continue;
         }
 
         if ((err = nsocket_recv(socket, buff, sizeof(buff), &availsz, NSOCKET_RECV_NOFLAGS)) != NError_Success)
         {
             if (err == NError_WouldBlock) continue;
-            goto errorquit_socket;
+            goto errorquit_nerror;
         }
-        if (!availsz) { err = NError_ConnectionReset; goto errorquit_socket; }
+        if (!availsz) { err = NError_ConnectionReset; goto errorquit_nerror; }
 
         {
             void *new_ret = realloc(ret, retsz + availsz);
-            if (!new_ret) { err = NError_MemoryAllocationFailed; goto errorquit_socket; }
+            if (!new_ret) { err = NError_MemoryAllocationFailed; goto errorquit_nerror; }
             ret = new_ret;
         }
         memcpy(ret + retsz, buff, availsz);
@@ -50,9 +50,9 @@ recvallresult recvallwithtimeout(const NSocket *socket, void **data, size_t *siz
     *size = retsz;
     return (recvallresult){ .type = RECVALL_NOERROR };
 
-    errorquit_socket:
+    errorquit_nerror:
         if (ret) free(ret);
-    return (recvallresult){ .type = RECVALL_NError, .error.generic = err };
+    return (recvallresult){ .type = RECVALL_NERROR, .error.generic = err };
 
     errorquit_monotime:
         if (ret) free(ret);
