@@ -5,9 +5,9 @@
 #include <time.h>
 #include <string.h>
 #include <signal.h>
-#include <libmonotime.h>
-#include <libnthread.h>
 #include <libnsocket.h>
+#include <libnthread.h>
+#include <libmonotime.h>
 
 #include "request.h"
 #include "util.h"
