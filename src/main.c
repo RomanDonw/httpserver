@@ -222,11 +222,9 @@ int main(int argc, char **argv)
 
         // =============================================================================
 
-        //printf("HTTP request info:\n -  Method: %s.\n -  URL: \"%s\".\n -  Version: %s.\n", req.method, req.url, req.version);
-
+        printf("HTTP request info:\n -  Method: %s.\n -  URL: \"%s\".\n -  Version: %s.\n", req.method, req.url, req.version);
         printf("HTTP headers count: %zu.\nHTTP headers:\n", req.headerscount);
         for (size_t i = 0; i < req.headerscount; i++) printf("    [%zu]: \"%s\" = \"%s\".\n", i, req.headers[i].name, req.headers[i].value);
-
         printf("HTTP request body size: %zu.\n", req.bodysize);
 
         if (!memfcmp(req.version, req.versionsize, "HTTP/1.1", sizeof("HTTP/1.1")))
