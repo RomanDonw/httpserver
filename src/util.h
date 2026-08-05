@@ -11,7 +11,7 @@
     #define __func__ __FUNCTION__
 #endif
 
-void __logerror(const char *filename, int line, const char *functionname, const char *format, ...);
+void __logerror(const char *file, long long line, const char *funcname, const char *format, ...);
 #define logerror(...) (__logerror(__FILE__, __LINE__, __func__, __VA_ARGS__))
 
 #define monotime_now_s(time_ptr) \
@@ -22,7 +22,6 @@ void __logerror(const char *filename, int line, const char *functionname, const 
 
 void *malloc_s(size_t size); // can`t return NULL.
 void *realloc_s(void *ptr, size_t size); // can`t return NULL.
-
 
 enum recvallresulttype
 {

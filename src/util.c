@@ -4,6 +4,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include <stdarg.h>
+#include <time.h>
 
 recvallresult recvallwithtimeout(const NSocket *socket, void **data, size_t *size, monotime_t singlemaxwaittime, monotime_t fullmaxwaittime)
 {
@@ -59,19 +60,23 @@ recvallresult recvallwithtimeout(const NSocket *socket, void **data, size_t *siz
     return (recvallresult){ .type = RECVALL_OWNERROR, .error.own = RECVALLERROR_MONOTIME };
 }
 
-void __logerror(const char *filename, int line, const char *functionname, const char *format, ...)
+void __logerror(const char *file, long long line, const char *funcname, const char *format, ...)
 {
     va_list args;
     va_start(args, format);
 
-    fprintf(stderr, "[file \"%s\" line %i function \"%s\"]: ", filename, line, functionname);
+    char datestrbuff[128] = "<<<TIMEFMTERR>>>";
+    time_t now = time(NULL);
+    strftime(datestrbuff, sizeof(datestrbuff), "%H:%M:%S %d %b %Y UTC", gmtime(&now));
+
+    fprintf(stderr, "[%s at %lli:\"%s\":%s]: ", datestrbuff, file);
     vfprintf(stderr, format, args);
     fputc('\n', stderr);
 
     va_end(args);
 }
 
-static const char *memallocerrorstr = "memory (re)allocation failed.";
+static const char *memallocerrorstr = "memory safe (re)allocation failed.";
 
 void *malloc_s(size_t size)
 {
