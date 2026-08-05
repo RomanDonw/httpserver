@@ -298,7 +298,7 @@ int main(int argc, char **argv)
             
         closeconn:
             CHECKSOCKERR(err, nsocket_close(cl));
-            printf("Closed connection with %s:%hu.\n\n", ip4str, port);
+            LOG(printf("Closed connection with %s:%hu.\n\n", ip4str, port););
     }
 
     // =============================================================================
