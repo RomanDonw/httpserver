@@ -12,6 +12,9 @@
 #include "request.h"
 #include "util.h"
 
+static volatile bool logenabled = true;
+#define LOG(code) { if (logenabled) { code } }
+
 // herr_... - error handler prefix.
 void herr_libnsocket(NError err) { fprintf(stderr, "libnsocket error: %s.\n", n_strerror(err)); exit(EXIT_FAILURE); }
 void herr_parsearg(const char *pname) { fprintf(stderr, "Error parsing %s parameter value.\n", pname); exit(EXIT_FAILURE); }
@@ -46,9 +49,6 @@ const char *getcurrGMTdateforHTTP(void)
 
 int main(int argc, char **argv)
 {
-    signal(SIGTERM, handlesig);
-    signal(SIGINT, handlesig);
-
     if (!monotime_now(NULL)) { fputs("This platform doesn't support monotonic time.", stderr); return 1; }
 
     // =============================================================================
@@ -66,7 +66,7 @@ int main(int argc, char **argv)
     
     {
         int p;
-        while ((p = getopt(argc, argv, "a:p:b:")) != -1)
+        while ((p = getopt(argc, argv, "a:p:b:q")) != -1)
         {
             switch (p)
             {
@@ -86,6 +86,11 @@ int main(int argc, char **argv)
                 case 'b':
                     if (sscanf(optarg, "%hhu", &backlog) < 1) herr_parsearg("-b");
                     if (!backlog) { puts("Backlog queue length can't be equal to zero. Allowed values: 1 - 255."); return 1; }
+                    break;
+
+                case 'q':
+                    logenabled = false;
+                    break;
             }
         }
     }
@@ -105,9 +110,12 @@ int main(int argc, char **argv)
     CHECKSOCKERR(err, nsocket_bind(serv, &saddr, sizeof(saddr)));
     CHECKSOCKERR(err, nsocket_listen(serv, backlog));
 
-    printf("Started HTTP 1.1 server at %s:%hu (backlog queue length: %hhu).\n\n", addrstr, port, backlog);
+    LOG(printf("Started HTTP 1.1 server at %s:%hu (backlog queue length: %hhu).\n\n", addrstr, port, backlog););
 
     // =============================================================================
+
+    signal(SIGTERM, handlesig);
+    signal(SIGINT, handlesig);
 
     char ip4str[IPV4ADDRSTRSIZE];
     NSocket *cl;
@@ -155,7 +163,7 @@ int main(int argc, char **argv)
             goto closeconn;
         }
 
-        printf("Accepted client %s:%hu at %s.\n", ip4str, port, getcurrGMTdateforHTTP());
+        LOG(printf("Accepted client %s:%hu at %s.\n", ip4str, port, getcurrGMTdateforHTTP()););
 
         // =============================================================================
 
@@ -222,10 +230,12 @@ int main(int argc, char **argv)
 
         // =============================================================================
 
-        printf("HTTP request info:\n -  Method: %s.\n -  URL: \"%s\".\n -  Version: %s.\n", req.method, req.url, req.version);
-        printf("HTTP headers count: %zu.\nHTTP headers:\n", req.headerscount);
-        for (size_t i = 0; i < req.headerscount; i++) printf("    [%zu]: \"%s\" = \"%s\".\n", i, req.headers[i].name, req.headers[i].value);
-        printf("HTTP request body size: %zu.\n", req.bodysize);
+        LOG(
+            printf("HTTP request info:\n -  Method: %s.\n -  URL: \"%s\".\n -  Version: %s.\n", req.method, req.url, req.version);
+            printf("HTTP headers count: %zu.\nHTTP headers:\n", req.headerscount);
+            for (size_t i = 0; i < req.headerscount; i++) printf("    [%zu]: \"%s\" = \"%s\".\n", i, req.headers[i].name, req.headers[i].value);
+            printf("HTTP request body size: %zu.\n", req.bodysize);
+        );
 
         if (!memfcmp(req.version, req.versionsize, "HTTP/1.1", sizeof("HTTP/1.1")))
         {
@@ -279,7 +289,7 @@ int main(int argc, char **argv)
             free(response);
         }
 
-        printf("Finished handling request from %s:%hu at %s.\n", ip4str, port, getcurrGMTdateforHTTP());
+        LOG(printf("Finished handling request from %s:%hu at %s.\n", ip4str, port, getcurrGMTdateforHTTP()););
 
         // ============================================================================
 
@@ -296,7 +306,7 @@ int main(int argc, char **argv)
     free(page);
 
     CHECKSOCKERR(err, nsocket_close(serv));
-    puts("\nHTTP 1.1 server stopped successfully.");
+    LOG(puts("\nHTTP 1.1 server stopped successfully."););
 
     CHECKSOCKERR(err, libnsocket_cleanup());
 
