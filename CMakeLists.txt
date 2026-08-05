@@ -3,7 +3,7 @@ project(httpserver LANGUAGES C)
 
 option(BUILD_SHARED_LIBS "Build shared libraries" OFF)
 
-set(CMAKE_C_STANDARD 23)
+set(CMAKE_C_STANDARD 99)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)
 
@@ -16,18 +16,6 @@ unset(SOURCES)
 if(WIN32)
     target_compile_definitions(${PROJECT_NAME} PRIVATE OS_WINDOWS)
 endif()
-
-#target_link_options(${PROJECT_NAME} PRIVATE
-#    "-static-libgcc"
-#    "-Wl,-Bstatic,--whole-archive"
-#    "-lwinpthread"
-#    "-Wl,--no-whole-archive"
-#    "-O2"
-#)
-
-find_package(PkgConfig REQUIRED)
-set(PKG_CONFIG_USE_CMAKE_PREFIX_PATH ON)
-set(ENV{PKG_CONFIG} "pkg-config --static")
 
 find_package(libnsocket REQUIRED)
 target_link_libraries(${PROJECT_NAME} PRIVATE libnsocket::nsocket)
